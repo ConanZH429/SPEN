@@ -23,21 +23,25 @@ class Checkpoint(Callback):
         self.monitor_mode = monitor_mode
         self.save_last = save_last
         self.best = None
+        self.best_epoch = None
         self.verbose = verbose
     
     def on_val_epoch_end(self, trainer):
         metric = trainer.metrics_dict[self.monitor]
-        filename = self.filename.name.replace("{train}", f"{trainer.now_epoch}")
         # Save best model
         if self.monitor_fn(metric, self.best):
             self.best = metric
-            torch.save(trainer.model.state_dict(), self.dirpath / filename)
+            self.best_epoch = self.trainer.now_epoch
+            torch.save(trainer.model.state_dict(), self.dirpath / self.filename)
             if self.verbose:
-                rich.print(f"Save best model with {self.monitor}: {self.best} at {self.dirpath / filename}")
-            trainer.logger.log_file(str(self.dirpath / filename))
+                rich.print(f"Save best model with {self.monitor}: {self.best} at {self.dirpath / self.filename}")
+            trainer.logger.log_file(str(self.dirpath / self.filename))
         # Save last model
-        if self.save_last and trainer.now_epoch == trainer.config.epochs - 1:
+        if self.save_last and trainer.now_epoch == trainer.config.epochs:
             torch.save(trainer.model.state_dict(), self.dirpath / "last.pth")
             if self.verbose:
                 rich.print(f"Save last model at {self.dirpath / 'last.pth'}")
             trainer.logger.log_file(str(self.dirpath / "last.pth"))
+            best_path = self.dirpath / self.filename
+            new_name = best_path.with_name(f"{self.filename.stem}-{self.best_epoch}.{self.filename.suffix}")
+            best_path.rename(new_name)

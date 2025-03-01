@@ -78,7 +78,7 @@ class Trainer:
     
 
     def fit_loop(self):
-        for epoch in range(self.max_epochs):
+        for epoch in range(1, self.max_epochs+1):
             self.now_epoch = epoch
             nowtime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             info = f"{nowtime} - Epoch {epoch + 1}/{self.max_epochs}"
