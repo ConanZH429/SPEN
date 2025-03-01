@@ -1,0 +1,1 @@
+from .SPEEDconfig import SPEEDConfig

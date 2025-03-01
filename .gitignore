@@ -1,0 +1,7 @@
+/result/
+/.cometml-runs/
+
+/__pycache__/
+*.pyc
+
+/.vscode/
