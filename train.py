@@ -40,7 +40,7 @@ if __name__ == "__main__":
     # ----------Callbacks----------
     checkpoint = Checkpoint(
         dirpath=str(dirpath),
-        filename="best-{epoch}",
+        filename="best",
         monitor="val/score",
         monitor_mode="min"
     )
@@ -56,9 +56,6 @@ if __name__ == "__main__":
     )
     
     # ==========Model==========
-    config.train_ratio = 1.0
-    config.val_ratio = 1.0
-
     model = ImageModule(config=config)
 
     train_dataloader, val_dataloader = get_dataloader(config)

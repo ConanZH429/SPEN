@@ -6,16 +6,16 @@ class SPEEDConfig(Config):
     def __init__(self):
         super().__init__()
         # config
-        self.exp_type = "pos_exp"
+        self.exp_type = "test"
         self.seed = 42
         self.deterministic = False
-        self.benchmark = True
+        self.benchmark = False
         self.debug = False
         self.comet_api = "agcu7oeqU395peWf6NCNqnTa7"
-        self.offline = True
+        self.offline = False
 
         # dataset
-        self.dataset_folder = Path("..\\datasets\\speed")
+        self.dataset_folder = Path("../datasets/speed")
         self.train_ratio = 0.85
         self.val_ratio = 0.15
         self.cache = False

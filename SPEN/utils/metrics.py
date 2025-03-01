@@ -39,7 +39,7 @@ class PosLoss(Metric):
             self.add_state("cart_loss", default=torch.tensor(0.0))
             self.update = self.update_cart
             self.compute = self.compute_cart
-        if pos_type == "Spher":
+        elif pos_type == "Spher":
             self.add_state("spher_loss", default=torch.tensor(0.0))
             self.update = self.update_spher
             self.compute = self.compute_spher

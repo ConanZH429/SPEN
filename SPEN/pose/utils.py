@@ -6,7 +6,6 @@ from .euler import EulerEncoder, EulerDecoder
 from .spher import SpherEncoder, SpherDecoder
 
 def get_ori_encoder(ori_type: str, **kwargs):
-    kwargs["device"] = "cpu"
     if ori_type == "DiscreteEuler":
         return DiscreteEulerEncoder(**kwargs)
     elif ori_type == "Quat":
@@ -17,7 +16,6 @@ def get_ori_encoder(ori_type: str, **kwargs):
         raise ValueError(f"Unknown ori type: {ori_type}")
 
 def get_ori_decoder(ori_type: str, **kwargs):
-    kwargs["device"] = "cpu"
     if ori_type == "DiscreteEuler":
         return DiscreteEulerDecoder(**kwargs)
     elif ori_type == "Quat":
@@ -30,7 +28,6 @@ def get_ori_decoder(ori_type: str, **kwargs):
 
 def get_pos_encoder(pos_type: str, **kwargs):
     if pos_type == "DiscreteSpher":
-        kwargs["device"] = "cpu"
         return DiscreteSpherEncoder(**kwargs)
     elif pos_type == "Cart":
         return CartEncoder(**kwargs)

@@ -58,7 +58,7 @@ class CometLogger(Logger):
         Args:
             tags (list[str]): The tags to log
         """
-        self.experiment.add_tags(tags)
+        self.experiment.add_tags(list(map(str, tags)))
     
     def log_file(self, file_path: str):
         """
@@ -83,7 +83,10 @@ class CometLogger(Logger):
             code_name (Optional[str], optional): The code name. Defaults to None.
             overwrite (bool, optional): Whether to overwrite. Defaults to False.
         """
-        self.experiment.log_code(file_name=str(file_path), folder=str(folder_path), code_name=code_name, overwrite=overwrite)
+        if file_path:
+            self.experiment.log_code(file_name=str(file_path), code_name=code_name, overwrite=overwrite)
+        elif folder_path:
+            self.experiment.log_code(folder=str(folder_path), code_name=code_name, overwrite=overwrite)
 
     def log_hyperparams(self, hyperparams: dict):
         """

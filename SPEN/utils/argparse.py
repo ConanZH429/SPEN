@@ -12,7 +12,7 @@ def parse2config(config):
     # neck
     parser.add_argument("--neck", type=str, default=config.neck, help="Neck",
                         choices=list(config.neck_args.keys()))
-    parser.add_argument("--att_type", type=str, default=config.att_type, help="Attention type",
+    parser.add_argument("--att_type", type=str, default=config.neck_args["DensAttFPN"]["att_type"], help="Attention type",
                         choices=["SSIA", "SE", "SAM", "CBAM"])
     # head
     parser.add_argument("--pos_ratio", type=float, default=config.pos_ratio, help="Position feature ratio")

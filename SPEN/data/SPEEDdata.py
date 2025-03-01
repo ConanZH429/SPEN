@@ -35,8 +35,11 @@ def SPEED_split_dataset(config: SPEEDConfig = SPEEDConfig()):
     dataset_folder = config.dataset_folder
     train_txt_path = dataset_folder / "train.txt"
     val_txt_path = dataset_folder / "val.txt"
+    train_json_path = dataset_folder / "train_label.json"
+    val_json_path = dataset_folder / "val_label.json"
     if train_txt_path.exists() and val_txt_path.exists():
-        return None
+        if train_json_path.exists() and val_json_path.exists():
+            return None
     
     with open(dataset_folder / "train.json", "r") as f:
         label = json.load(f)
@@ -251,7 +254,7 @@ class SPEEDValDataset(SPEEDDataset):
 
 def get_dataloader(config: SPEEDConfig = SPEEDConfig()):
     data_loader = DataLoader if config.debug else MultiEpochsDataLoader
-    # data_loader = DataLoader
+    data_loader = DataLoader
     train_dataset = SPEEDTrainDataset(config)
     val_dataset = SPEEDValDataset(config)
     train_loader = data_loader(
@@ -259,19 +262,19 @@ def get_dataloader(config: SPEEDConfig = SPEEDConfig()):
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=config.num_workers,
-        # persistent_workers=True,
-        # pin_memory=True,
-        # pin_memory_device="cuda",
-        # prefetch_factor=2
+        persistent_workers=True,
+        pin_memory=True,
+        pin_memory_device="cuda",
+        prefetch_factor=4
     )
     val_loader = data_loader(
         val_dataset,
         batch_size=config.batch_size,
         shuffle=False,
         num_workers=config.num_workers,
-        # persistent_workers=True,
-        # pin_memory=True,
-        # pin_memory_device="cuda",
-        # prefetch_factor=4
+        persistent_workers=True,
+        pin_memory=True,
+        pin_memory_device="cuda",
+        prefetch_factor=4
     )
     return train_loader, val_loader
