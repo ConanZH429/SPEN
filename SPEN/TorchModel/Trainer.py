@@ -81,7 +81,7 @@ class Trainer:
         for epoch in range(1, self.max_epochs+1):
             self.now_epoch = epoch
             nowtime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            info = f"{nowtime} - Epoch {epoch + 1}/{self.max_epochs}"
+            info = f"{nowtime} - Epoch {epoch}/{self.max_epochs}"
             rich.print(f"{info:=^50}")
 
             self.train_epoch_loop()

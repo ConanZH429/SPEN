@@ -20,6 +20,7 @@ class DiscreteSpher():
         """
         self.angle_stride = angle_stride
         self.r_stride = r_stride
+        self.r_max = r_max
         self.alpha = alpha
         self.neighbor = neighbor
         self.device = device
