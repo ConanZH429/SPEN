@@ -254,7 +254,7 @@ class SPEEDValDataset(SPEEDDataset):
 
 def get_dataloader(config: SPEEDConfig = SPEEDConfig()):
     data_loader = DataLoader if config.debug else MultiEpochsDataLoader
-    data_loader = DataLoader
+    # data_loader = DataLoader
     train_dataset = SPEEDTrainDataset(config)
     val_dataset = SPEEDValDataset(config)
     train_loader = data_loader(

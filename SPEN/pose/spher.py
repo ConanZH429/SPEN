@@ -11,11 +11,15 @@ class SpherEncoder():
 
     def encode(self, pos: np.ndarray) -> dict[str, np.ndarray]:
         x, y, z = pos
+        # r = math.sqrt(x**2 + y**2 + z**2)
+        # theta = math.acos(z / r) * 180 / math.pi
+        # phi = math.atan2(y, x) * 180 / math.pi
+        # spher = np.array([r, theta, phi])
+        # spher = (spher + self.bias) / self.scale
         r = math.sqrt(x**2 + y**2 + z**2)
-        theta = math.acos(z / r) * 180 / math.pi
-        phi = math.atan2(y, x) * 180 / math.pi
+        theta = math.acos(z / r)
+        phi = math.atan2(y, x)
         spher = np.array([r, theta, phi])
-        spher = (spher + self.bias) / self.scale
         return {
             "spher": spher
         }
@@ -33,10 +37,11 @@ class SpherDecoder():
         Args:
             pos_pre_dict (dict[str, Tensor]): the spherical coordinate to decode
         """
-        spher = pos_pre_dict["spher"] * self.scale - self.bias
+        # spher = pos_pre_dict["spher"] * self.scale - self.bias
+        spher = pos_pre_dict["spher"]
         r, theta, phi = spher.unbind(1)
-        theta = torch.deg2rad(theta)
-        phi = torch.deg2rad(phi)
+        # theta = torch.deg2rad(theta)
+        # phi = torch.deg2rad(phi)
 
         z = r * torch.cos(theta)
         r_sin_theta = r * torch.sin(theta)

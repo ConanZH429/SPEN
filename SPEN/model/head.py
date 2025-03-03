@@ -21,7 +21,7 @@ class SpherHead(nn.Module):
     
     def forward(self, x: Tensor):
         spher = self.spher_mlp(x)
-        spher = F.sigmoid(spher)
+        # spher = F.sigmoid(spher)
         return {
             "spher": spher
         }
@@ -65,13 +65,13 @@ class QuatHead(nn.Module):
 
 
 class EulerHead(nn.Module):
-    def __init__(self, in_channels: int):
+    def __init__(self, in_channels: int, **kwargs):
         super().__init__()
         self.euler_mlp = Mlp(in_channels, in_channels // 2, 3, act_layer=Act)
     
     def forward(self, x: Tensor):
         euler = self.euler_mlp(x)
-        euler = F.sigmoid(euler)
+        # euler = F.sigmoid(euler)
         return {
             "euler": euler
         }

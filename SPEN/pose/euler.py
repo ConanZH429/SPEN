@@ -20,8 +20,9 @@ class EulerEncoder():
             dict[str, np.ndarray]: the encoded Euler angle
         """
         rotation = R.from_quat(ori, scalar_first=True)
-        euler = rotation.as_euler("YXZ", degrees=True)  # yaw, pitch, roll
-        euler = (euler + self.bias) / self.scale
+        euler = rotation.as_euler("YXZ", degrees=False)
+        # euler = rotation.as_euler("YXZ", degrees=True)  # yaw, pitch, roll
+        # euler = (euler + self.bias) / self.scale
 
         return {
             "euler": euler
@@ -43,11 +44,15 @@ class EulerDecoder():
         Returns:
             Tensor: the decoded quaternion
         """
-        euler = ori_pre_dict["euler"] * self.scale - self.bias
+        # euler = ori_pre_dict["euler"] * self.scale - self.bias
+        euler = ori_pre_dict["euler"]
         yaw, pitch, roll = euler.unbind(1)
-        half_yaw = torch.deg2rad(yaw * 0.5)
-        half_pitch = torch.deg2rad(pitch * 0.5)
-        half_roll = torch.deg2rad(roll * 0.5)
+        half_yaw = yaw * 0.5
+        half_pitch = pitch * 0.5
+        half_roll = roll * 0.5
+        # half_yaw = torch.deg2rad(yaw * 0.5)
+        # half_pitch = torch.deg2rad(pitch * 0.5)
+        # half_roll = torch.deg2rad(roll * 0.5)
 
         cy = torch.cos(half_yaw)
         sy = torch.sin(half_yaw)

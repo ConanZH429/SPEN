@@ -46,6 +46,9 @@ def parse2config(config):
     args = parser.parse_args()
 
     config.exp_type = args.exp_type
+    config.epochs = args.epochs
+    config.batch_size = args.batch_size
+    config.num_workers = args.num_workers
     config.backbone = args.backbone
     config.neck = args.neck
     config.att_type = args.att_type
@@ -64,6 +67,6 @@ def parse2config(config):
     config.ori_loss_type = args.ori_loss_type
     config.ALPHA = tuple(args.ALPHA)
     config.BETA = tuple(args.BETA)
-    config.name = f"{config.name}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
+    config.name = f"{config.exp_type}_{config.backbone}_{config.neck}_{config.pos_type}_{config.pos_loss_type}_{config.ori_type}_{config.ori_loss_type}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
 
     return config

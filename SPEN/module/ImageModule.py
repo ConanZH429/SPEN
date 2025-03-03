@@ -58,15 +58,15 @@ class ImageModule(Model):
         # tags
         tags = [self.config.exp_type, self.config.backbone, self.config.neck]
         if self.config.neck == "DensAttFPN":
-            tags += self.config.neck_args["DensAttFPN"]["att_type"]
-        tags += [self.config.pos_ratio, self.config.avg_size]
-        tags += [self.config.pos_type, self.config.pos_loss_type]
+            tags += ["att_type:" + str(self.config.neck_args["DensAttFPN"]["att_type"])]
+        tags += ["avg_size:" + str(self.config.avg_size)]
+        tags += ["pos_type:" + self.config.pos_type, "pos_loss_type:" + self.config.pos_loss_type]
         if self.config.pos_type == "DiscreteSpher":
             tags += [f"angle_stride:{self.config.pos_args['DiscreteSpher']['angle_stride']}",
                      f"r_stride:{self.config.pos_args['DiscreteSpher']['r_stride']}",
                      f"dis_spher_alpha:{self.config.pos_args['DiscreteSpher']['alpha']}",
                      f"dis_spher_neighbor:{self.config.pos_args['DiscreteSpher']['neighbor']}"]
-        tags += [self.config.ori_type, self.config.ori_loss_type]
+        tags += ["ori_type:" + self.config.ori_type, "ori_loss_type:" + self.config.ori_loss_type]
         if self.config.ori_type == "DiscreteEuler":
             tags += [f"stride:{self.config.ori_args['DiscreteEuler']['stride']}",
                      f"dis_euler_alpha:{self.config.ori_args['DiscreteEuler']['alpha']}",

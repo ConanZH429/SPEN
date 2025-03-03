@@ -171,4 +171,4 @@ class SPEEDConfig(Config):
 
         self.AlbumentationAug_p = 0.01
 
-        self.name = f"{self.exp_type}_{self.backbone}_{self.neck}_{self.pos_type}_{self.pos_loss_type}_{self.ori_type}_{self.ori_loss_type}"
+        self.name = ""
