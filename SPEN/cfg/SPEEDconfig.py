@@ -9,7 +9,7 @@ class SPEEDConfig(Config):
         self.exp_type = "test"
         self.seed = 42
         self.deterministic = False
-        self.benchmark = False
+        self.benchmark = True
         self.debug = False
         self.comet_api = "agcu7oeqU395peWf6NCNqnTa7"
         self.offline = False

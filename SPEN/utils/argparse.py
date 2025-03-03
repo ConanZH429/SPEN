@@ -6,6 +6,10 @@ def parse2config(config):
     
     # exp_type
     parser.add_argument("--exp_type", type=str, required=True, help="Experiment type")
+    # train
+    parser.add_argument("--epochs", type=int, default=config.epochs, help="Number of epochs")
+    parser.add_argument("--batch_size", type=int, default=config.batch_size, help="Batch size")
+    parser.add_argument("--num_workers", type=int, default=config.num_workers, help="Number of workers")
     # backbone
     parser.add_argument("--backbone", type=str, default=config.backbone, help="Backbone",
                         choices=list(config.backbone_args.keys()))

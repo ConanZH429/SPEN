@@ -95,7 +95,7 @@ class SPEEDDataset(Dataset):
         ])
         self.pos_encoder = get_pos_encoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_encoder = get_ori_encoder(config.ori_type, **config.ori_args[config.ori_type])
-        self.len = int(len(self.image_list) * self.ratio)
+        self.len = int(len(self.image_list))
     
     def __len__(self) -> int:
         return self.len
@@ -147,7 +147,7 @@ class SPEEDDataset(Dataset):
         with tqdm(image_list) as tbar:
             for image_name in tbar:
                 tbar.set_postfix_str(f"Loading {image_name}")
-                self.image_dict[image_name] = cv.imread(str(dataset_folder / "train" / image_name), cv.IMREAD_GRAYSCALE)
+                self.image_dict[image_name] = cv.imread(str(dataset_folder / "images" / "train" / image_name), cv.IMREAD_GRAYSCALE)
         return self.image_dict
     
     def _resize_image(self, image: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

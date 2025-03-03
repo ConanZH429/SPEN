@@ -33,7 +33,7 @@ class Checkpoint(Callback):
         if self.monitor_fn(metric, self.best):
             self.best_str = "\n".join([f"{k}: {v}" for k, v in trainer.metrics_dict.items()])
             self.best = metric
-            self.best_epoch = self.trainer.now_epoch
+            self.best_epoch = trainer.now_epoch
             torch.save(trainer.model.state_dict(), self.dirpath / self.filename)
             if self.verbose:
                 rich.print(f"Save best model with {self.monitor}: {self.best} at {self.dirpath / self.filename}")

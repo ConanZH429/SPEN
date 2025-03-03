@@ -145,7 +145,7 @@ class PerspectiveAug():
         ori_warpped = rotation * R.from_quat(ori, scalar_first=True)
         ori_warpped = ori_warpped.as_quat(canonical=True, scalar_first=True)
 
-        return image_warpped, pos_warpped, ori_warpped, box_warpped
+        return image_warpped, pos_warpped.astype(np.float32), ori_warpped.astype(np.float32), box_warpped.astype(np.float32)
 
 
 class ZAxisRotation():
@@ -199,7 +199,7 @@ class ZAxisRotation():
         ori_warpped = rotation * R.from_quat(ori, scalar_first=True)
         ori_warpped = ori_warpped.as_quat(canonical=True, scalar_first=True)
 
-        return image_warpped, pos_warpped, ori_warpped, box_warpped
+        return image_warpped, pos_warpped.astype(np.float32), ori_warpped.astype(np.float32), box_warpped.astype(np.float32)
 
 class AlbumentationAug():
     """
