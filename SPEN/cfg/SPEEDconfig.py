@@ -81,7 +81,7 @@ class SPEEDConfig(Config):
         self.pos_type = "Cart"
         self.pos_args = {
             "Cart": {},
-            "Spher": {"r_max": 50},
+            "Spher": {},
             "DiscreteSpher": {
                 "r_max": 50,
                 "r_stride": 1,
@@ -96,7 +96,7 @@ class SPEEDConfig(Config):
         self.ori_type = "Quat"
         self.ori_args = {
             "Quat": {},
-            "Euler": {"device": "cuda"},
+            "Euler": {},
             "DiscreteEuler": {
                 "stride": 5,
                 "alpha": 0.0,

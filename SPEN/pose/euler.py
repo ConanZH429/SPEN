@@ -7,8 +7,7 @@ from scipy.spatial.transform import Rotation as R
 
 class EulerEncoder():
     def __init__(self, device: str = "cpu"):
-        self.bias = np.array([180, 90, 180])
-        self.scale = np.array([360, 180, 360])
+        pass
 
     def encode(self, ori: np.ndarray) -> dict[str, np.ndarray]:
         """
@@ -21,8 +20,6 @@ class EulerEncoder():
         """
         rotation = R.from_quat(ori, scalar_first=True)
         euler = rotation.as_euler("YXZ", degrees=False)
-        # euler = rotation.as_euler("YXZ", degrees=True)  # yaw, pitch, roll
-        # euler = (euler + self.bias) / self.scale
 
         return {
             "euler": euler
@@ -32,8 +29,6 @@ class EulerEncoder():
 class EulerDecoder():
     def __init__(self, device: str = "cuda"):
         self.device = device
-        self.scale = torch.tensor([360, 180, 360], device=device)
-        self.bias = torch.tensor([180, 90, 180], device=device)
 
     def decode_batch(self, ori_pre_dict: dict[str, Tensor]) -> Tensor:
         """
@@ -44,15 +39,11 @@ class EulerDecoder():
         Returns:
             Tensor: the decoded quaternion
         """
-        # euler = ori_pre_dict["euler"] * self.scale - self.bias
         euler = ori_pre_dict["euler"]
         yaw, pitch, roll = euler.unbind(1)
         half_yaw = yaw * 0.5
         half_pitch = pitch * 0.5
         half_roll = roll * 0.5
-        # half_yaw = torch.deg2rad(yaw * 0.5)
-        # half_pitch = torch.deg2rad(pitch * 0.5)
-        # half_roll = torch.deg2rad(roll * 0.5)
 
         cy = torch.cos(half_yaw)
         sy = torch.sin(half_yaw)

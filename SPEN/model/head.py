@@ -15,7 +15,7 @@ class CartHead(nn.Module):
 
 
 class SpherHead(nn.Module):
-    def __init__(self, in_channels: int, r_max: int):
+    def __init__(self, in_channels: int):
         super().__init__()
         self.spher_mlp = Mlp(in_channels, in_channels // 2, 3, act_layer=Act)
     
