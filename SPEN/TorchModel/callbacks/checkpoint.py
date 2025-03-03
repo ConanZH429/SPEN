@@ -25,11 +25,13 @@ class Checkpoint(Callback):
         self.best = None
         self.best_epoch = None
         self.verbose = verbose
+        self.best_str = ""
     
-    def on_val_epoch_end(self, trainer):
+    def on_fit_epoch_end(self, trainer):
         metric = trainer.metrics_dict[self.monitor]
         # Save best model
         if self.monitor_fn(metric, self.best):
+            self.best_str = "\n".join([f"{k}: {v}" for k, v in trainer.metrics_dict.items()])
             self.best = metric
             self.best_epoch = self.trainer.now_epoch
             torch.save(trainer.model.state_dict(), self.dirpath / self.filename)
@@ -38,10 +40,14 @@ class Checkpoint(Callback):
             trainer.logger.log_file(str(self.dirpath / self.filename))
         # Save last model
         if self.save_last and trainer.now_epoch == trainer.config.epochs:
-            torch.save(trainer.model.state_dict(), self.dirpath / "last.pth")
+            last_path = self.dirpath / "last.pth"
+            torch.save(trainer.model.state_dict(), last_path)
             if self.verbose:
-                rich.print(f"Save last model at {self.dirpath / 'last.pth'}")
-            trainer.logger.log_file(str(self.dirpath / "last.pth"))
+                rich.print(f"Save last model at {last_path}")
+            trainer.logger.log_file(str(last_path))
             best_path = self.dirpath / self.filename
             new_name = best_path.with_name(f"{self.filename.stem}-{self.best_epoch}.{self.filename.suffix}")
             best_path.rename(new_name)
+            rich.print(f"Best model is at {new_name}")
+            rich.print(self.best_str)
+            trainer.logger.log_txt(self.best_str)

@@ -60,14 +60,15 @@ class CometLogger(Logger):
         """
         self.experiment.add_tags(list(map(str, tags)))
     
-    def log_file(self, file_path: str):
+    def log_file(self, file_path: str, file_name: Optional[str] = None):
         """
         Log a file to Comet
 
         Args:
             file_path (str): The file path to log
+            file_name (Optional[str], optional): The file name. Defaults to None.
         """
-        self.experiment.log_asset(file_path, overwrite=True)
+        self.experiment.log_asset(file_path, file_name=file_name ,overwrite=True)
     
     def log_code(self,
                  file_path: Optional[Union[str, Path]] = None,

@@ -13,3 +13,6 @@ class Callback:
 
     def on_val_epoch_end(self, trainer):
         """Called at the end of the validation epoch"""
+    
+    def on_fit_epoch_end(self, trainer):
+        """Called at the end of the fit epoch"""

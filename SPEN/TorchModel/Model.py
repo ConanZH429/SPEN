@@ -22,6 +22,9 @@ class Model(torch.nn.Module):
     def on_val_epoch_end(self):
         """Called at the end of each validation epoch"""
     
+    def on_fit_epoch_end(self):
+        """Called at the end of each fit epoch"""
+    
     def log_dict(self,
                  data: dict,
                  epoch: int,

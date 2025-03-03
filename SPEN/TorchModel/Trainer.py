@@ -84,24 +84,22 @@ class Trainer:
             info = f"{nowtime} - Epoch {epoch + 1}/{self.max_epochs}"
             rich.print(f"{info:=^50}")
 
-            self.on_train_epoch_start()
-
             self.train_epoch_loop()
 
-            self.on_train_epoch_end()
-
             self.val_epoch_loop()
-
-            self.on_val_epoch_end()
 
             if self.lr_scheduler is not None:
                 if self.lr_scheduler.__class__.__name__ == "ReduceLROnPlateau":
                     self.lr_scheduler.step(self.metrics_dict["val/score"])
                 else:
                     self.lr_scheduler.step()
+            
+            self.on_fit_epoch_end()
     
 
     def train_epoch_loop(self):
+        self.on_train_epoch_start()
+
         batch_loop = tqdm(self.train_loader,
                           desc="Train",)
         self.postfix_dict = {}
@@ -127,6 +125,8 @@ class Trainer:
             self.scaler.update()
             
             batch_loop.set_postfix(self.postfix_dict)
+        
+        self.on_train_epoch_end()
     
     
     def val_epoch_loop(self):
@@ -144,6 +144,8 @@ class Trainer:
                     self.model.val_step(index, batch)
         
             batch_loop.set_postfix(self.postfix_dict)
+        
+        self.on_val_epoch_end()
 
 
     def on_fit_start(self):
@@ -164,6 +166,10 @@ class Trainer:
     def on_val_epoch_end(self):
         [cb.on_val_epoch_end(trainer=self) for cb in self.callbacks]
         self.model.on_val_epoch_end()
+    
+    def on_fit_epoch_end(self):
+        [cb.on_fit_epoch_end(trainer=self) for cb in self.callbacks]
+        self.model.on_fit_epoch_end()
     
     
     def to_device(self, data):

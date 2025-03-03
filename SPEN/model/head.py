@@ -117,19 +117,16 @@ class Head(nn.Module):
         feature_dim = sum(channels*avg_size**2 for channels, avg_size in zip(in_channels, config.avg_size))
         self.fuse_fc = Mlp(feature_dim, out_features=feature_dim, act_layer=Act)
         self.avg_size = config.avg_size
-        self.pos_dim = int(feature_dim * config.pos_ratio)
-        self.ori_dim = feature_dim - self.pos_dim
         PosHead = Head.pos_head_dict[config.pos_type]
-        self.pos_head = PosHead(self.pos_dim, **config.pos_args[config.pos_type])
+        self.pos_head = PosHead(feature_dim, **config.pos_args[config.pos_type])
         OriHead = Head.ori_head_dict[config.ori_type]
-        self.ori_head = OriHead(self.ori_dim, **config.ori_args[config.ori_type])
+        self.ori_head = OriHead(feature_dim, **config.ori_args[config.ori_type])
 
     
     def forward(self, x: List[Tensor]):
         x_pooled = [F.adaptive_avg_pool2d(x, avg_size).flatten(1) for x, avg_size in zip(x, self.avg_size)]
         x_pooled = torch.cat(x_pooled, dim=1)
-        x_fused = self.fuse_fc(x_pooled)
-        pos_feature, ori_feature = x_fused.split([self.pos_dim, self.ori_dim], dim=1)
-        pos_pre_dict = self.pos_head(pos_feature)
-        ori_pre_dict = self.ori_head(ori_feature)
+        feature_fused = self.fuse_fc(x_pooled)
+        pos_pre_dict = self.pos_head(feature_fused)
+        ori_pre_dict = self.ori_head(feature_fused)
         return pos_pre_dict, ori_pre_dict
