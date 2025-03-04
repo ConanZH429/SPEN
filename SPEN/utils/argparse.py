@@ -65,8 +65,8 @@ def parse2config(config):
     config.ori_args["DiscreteEuler"]["alpha"] = args.discrete_euler_alpha
     config.ori_args["DiscreteEuler"]["neighbor"] = args.discrete_euler_neighbor
     config.ori_loss_type = args.ori_loss_type
-    config.ALPHA = tuple(map(float, args.ALPHA.split()))
-    config.BETA = tuple(map(float, args.BETA.split()))
+    config.ALPHA = tuple(map(float, args.ALPHA))
+    config.BETA = tuple(map(float, args.BETA))
     config.name = f"{config.exp_type}_{config.backbone}_{config.neck}_{config.pos_type}_{config.pos_loss_type}_{config.ori_type}_{config.ori_loss_type}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
 
     return config
