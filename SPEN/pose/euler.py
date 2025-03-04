@@ -22,7 +22,7 @@ class EulerEncoder():
         euler = rotation.as_euler("YXZ", degrees=False)
 
         return {
-            "euler": euler
+            "euler": euler.astype(np.float32)
         }
 
 

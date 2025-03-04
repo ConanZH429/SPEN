@@ -13,7 +13,7 @@ class SpherEncoder():
         r = math.sqrt(x**2 + y**2 + z**2)
         theta = math.acos(z / r)
         phi = math.atan2(y, x)
-        spher = np.array([r, theta, phi])
+        spher = np.array([r, theta, phi], dtype=np.float32)
         return {
             "spher": spher
         }
