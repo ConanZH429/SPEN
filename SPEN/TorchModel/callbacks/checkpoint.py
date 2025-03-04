@@ -37,7 +37,6 @@ class Checkpoint(Callback):
             torch.save(trainer.model.state_dict(), self.dirpath / self.filename)
             if self.verbose:
                 rich.print(f"Save best model with {self.monitor}: {self.best} at {self.dirpath / self.filename}")
-            trainer.logger.log_file(str(self.dirpath / self.filename))
         # Save last model
         if self.save_last and trainer.now_epoch == trainer.config.epochs:
             last_path = self.dirpath / "last.pth"
@@ -47,7 +46,8 @@ class Checkpoint(Callback):
             trainer.logger.log_file(str(last_path))
             best_path = self.dirpath / self.filename
             new_name = best_path.with_name(f"{self.filename.stem}-{self.best_epoch}.{self.filename.suffix}")
-            best_path.rename(new_name)
+            best_path = best_path.rename(new_name)
+            trainer.logger.log_file(str(best_path))      # log best
             rich.print(f"Best model is at {new_name}")
             rich.print(self.best_str)
-            trainer.logger.log_txt(self.best_str)
+            trainer.logger.log_text(self.best_str)

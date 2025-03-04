@@ -4,6 +4,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class KLLoss(nn.Module):
+    def __init__(self, **kwargs):
+        super(KLLoss, self).__init__()
+    
+    def forward(self, p, q):
+        return F.kl_div(torch.log(p), q, reduction="batchmean")
+
 
 class JSLoss(nn.Module):
     def __init__(self):
@@ -12,8 +19,8 @@ class JSLoss(nn.Module):
     def forward(self, p, q):
         M = 0.5 * (p + q)
 
-        kl_p_m = F.kl_div(p, M)
-        kl_q_m = F.kl_div(q, M)
+        kl_p_m = F.kl_div(torch.log(p), M, reduction="batchmean")
+        kl_q_m = F.kl_div(torch.log(q), M, reduction="batchmean")
 
         return 0.5 * (kl_p_m + kl_q_m)
 
@@ -62,7 +69,7 @@ class SpherLoss(nn.Module):
 class DiscreteSpherLoss(nn.Module):
     loss_dict = {
         "CE": nn.CrossEntropyLoss,
-        "KL": nn.KLDivLoss,
+        "KL": KLLoss,
         "JS": JSLoss,
         "L1": nn.L1Loss,
         "L2": nn.MSELoss
@@ -156,7 +163,7 @@ class EulerLoss(nn.Module):
 class DiscreteEulerLoss(nn.Module):
     loss_dict = {
         "CE": nn.CrossEntropyLoss,
-        "KL": nn.KLDivLoss,
+        "KL": KLLoss,
         "JS": JSLoss,
         "L1": nn.L1Loss,
         "L2": nn.MSELoss

@@ -48,6 +48,8 @@ class ImageModule(Model):
         table.add_row("pos_loss_type", self.config.pos_loss_type, dict2str(self.config.pos_loss_args[self.config.pos_loss_type]))
         table.add_row("ori_type", self.config.ori_type, dict2str(self.config.ori_args[self.config.ori_type]))
         table.add_row("ori_loss_type", self.config.ori_loss_type, dict2str(self.config.ori_loss_args[self.config.ori_loss_type]))
+        table.add_row("ALPHA", str(self.config.ALPHA), "-")
+        table.add_row("BETA", str(self.config.BETA), "-")
         table.add_row("CropAndPaste_p", str(self.config.CropAndPaste_p), "-")
         table.add_row("CropAndPadSafe_p", str(self.config.CropAndPadSafe_p), "-")
         table.add_row("DropBlockSafe_p", str(self.config.DropBlockSafe_p), dict2str(self.config.DropBlockSafe_args))

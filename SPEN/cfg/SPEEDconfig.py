@@ -116,7 +116,7 @@ class SPEEDConfig(Config):
                          "beta": 1.0},
             # disceretspher
             "CE": {"reduction": "mean"},
-            "KL": {"reduction": "mean"},
+            "KL": {},
             "JS": {},
         }
         
@@ -134,12 +134,12 @@ class SPEEDConfig(Config):
                          "beta": 1.0},
             # discreteeuler
             "CE": {"reduction": "mean"},
-            "KL": {"reduction": "mean"},
+            "KL": {},
             "JS": {},
         }
 
-        self.ALPHA = (1, 5)              # score
-        self.BETA = (1, 5)               # loss
+        self.ALPHA = (1, 0)              # score
+        self.BETA = (1, 0)               # loss
 
         # augmentation
         self.ZAxisRotation_p = 0.8

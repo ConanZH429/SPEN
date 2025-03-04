@@ -39,9 +39,9 @@ def parse2config(config):
     parser.add_argument("--ori_loss_type", type=str, default=config.ori_loss_type, help="Orientation loss type",
                         choices=list(config.ori_loss_args.keys()))
     # score
-    parser.add_argument("--ALPHA", type=float, nargs="+", default=config.ALPHA, help="val score alpha")
+    parser.add_argument("--ALPHA", nargs="+", default=config.ALPHA, help="val score alpha")
     # loss beta
-    parser.add_argument("--BETA", type=float, nargs="+", default=config.BETA, help="loss beta")
+    parser.add_argument("--BETA", nargs="+", default=config.BETA, help="loss beta")
 
     args = parser.parse_args()
 
@@ -65,8 +65,8 @@ def parse2config(config):
     config.ori_args["DiscreteEuler"]["alpha"] = args.discrete_euler_alpha
     config.ori_args["DiscreteEuler"]["neighbor"] = args.discrete_euler_neighbor
     config.ori_loss_type = args.ori_loss_type
-    config.ALPHA = tuple(args.ALPHA)
-    config.BETA = tuple(args.BETA)
+    config.ALPHA = tuple(map(float, args.ALPHA[0].split()))
+    config.BETA = tuple(map(float, args.BETA[0].split()))
     config.name = f"{config.exp_type}_{config.backbone}_{config.neck}_{config.pos_type}_{config.pos_loss_type}_{config.ori_type}_{config.ori_loss_type}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
 
     return config
