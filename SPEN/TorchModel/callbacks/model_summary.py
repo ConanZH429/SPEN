@@ -1,3 +1,5 @@
+import torch
+
 from .callback import Callback
 from torchinfo import summary
 
@@ -18,10 +20,16 @@ class ModelSummary(Callback):
         self.depth = depth
     
     def on_fit_start(self, trainer):
-        result = summary(trainer.model,
-                         input_size=self.input_size,
-                         col_names=self.col_names,
-                         col_width=self.col_width,
-                         depth=self.depth)
+        with torch.no_grad():
+            result = summary(trainer.model,
+                            input_size=self.input_size,
+                            col_names=self.col_names,
+                            col_width=self.col_width,
+                            depth=self.depth)
+        model_metrics = {
+            "MACs(G)": result.total_mult_adds / 1e9,
+            "Params(M)": result.total_params / 1e6,
+        }
+        trainer.logger.log_dict(model_metrics, epoch=0)
         trainer.logger.log_text(str(result))
         

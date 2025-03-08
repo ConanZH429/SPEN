@@ -10,6 +10,8 @@ def parse2config(config):
     parser.add_argument("--epochs", type=int, default=config.epochs, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=config.batch_size, help="Batch size")
     parser.add_argument("--num_workers", type=int, default=config.num_workers, help="Number of workers")
+    parser.add_argument("--cache", action="store_true", help="Cache dataset")
+    parser.add_argument("--lr0", type=float, default=config.lr0, help="Initial learning rate")
     # backbone
     parser.add_argument("--backbone", type=str, default=config.backbone, help="Backbone",
                         choices=list(config.backbone_args.keys()))
@@ -49,11 +51,12 @@ def parse2config(config):
     config.epochs = args.epochs
     config.batch_size = args.batch_size
     config.num_workers = args.num_workers
+    config.cache = args.cache
     config.backbone = args.backbone
     config.neck = args.neck
     config.att_type = args.att_type
     config.pos_ratio = args.pos_ratio
-    config.avg_size = tuple(args.avg_size)
+    config.avg_size = tuple(map(int, args.avg_size))
     config.pos_type = args.pos_type
     config.pos_args["DiscreteSpher"]["r_stride"] = args.r_stride
     config.pos_args["DiscreteSpher"]["angle_stride"] = args.angle_stride

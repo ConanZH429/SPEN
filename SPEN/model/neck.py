@@ -5,16 +5,13 @@ from typing import Optional, List
 class ConvNeck(nn.Module):
     def __init__(self, in_channels: List[int], align_channels: int = 160):
         super().__init__()
-        self.conv_p3 = ConvNormAct(in_channels[-3], align_channels, 1, act_layer=Act)
-        self.conv_p4 = ConvNormAct(in_channels[-2], align_channels, 1, act_layer=Act)
-        self.conv_p5 = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=Act)
+        self.conv_p3 = ConvNormAct(in_channels[-3], align_channels, 1, act_layer=ConvAct)
+        self.conv_p4 = ConvNormAct(in_channels[-2], align_channels, 1, act_layer=ConvAct)
+        self.conv_p5 = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=ConvAct)
         self.out_channels = [align_channels, align_channels, align_channels]
     
     def forward(self, x: List[Tensor]):
-        x[-3] = self.conv_p3(x[-3])
-        x[-2] = self.conv_p4(x[-2])
-        x[-1] = self.conv_p5(x[-1])
-        return x
+        return self.conv_p3(x[-3]), self.conv_p4(x[-2]), self.conv_p5(x[-1])
 
 
 class IdentityNeck(nn.Module):
@@ -27,34 +24,33 @@ class IdentityNeck(nn.Module):
 
 
 class TaileNeck(nn.Module):
-    def __init__(self, in_channels: List[int], align_channels: int = 960):
+    def __init__(self, in_channels: List[int], align_channels: int = 460):
         super().__init__()
-        self.conv = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=Act)
+        self.conv = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=ConvAct)
         self.out_channels = [align_channels]
 
     def forward(self, x: List[Tensor]):
-        x = self.conv(x[-1])
-        return [x]
+        return [self.conv(x[-1])]
 
 
 class PAFPN(nn.Module):
     def __init__(self, in_channels: List[int], align_channels: int = 160):
         super().__init__()
-        self.align_p3 = ConvNormAct(in_channels[-3], align_channels, 1, act_layer=Act)
-        self.align_p4 = ConvNormAct(in_channels[-2], align_channels, 1, act_layer=Act)
-        self.align_p5 = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=Act)
+        self.align_p3 = ConvNormAct(in_channels[-3], align_channels, 1, act_layer=ConvAct)
+        self.align_p4 = ConvNormAct(in_channels[-2], align_channels, 1, act_layer=ConvAct)
+        self.align_p5 = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=ConvAct)
 
         # FPN
-        self.conv5_up = ConvNormAct(align_channels, align_channels, 3, act_layer=Act)
-        self.conv4_up = ConvNormAct(align_channels, align_channels, 3, act_layer=Act)
-        self.conv3_up = ConvNormAct(align_channels, align_channels, 3, act_layer=Act)
+        self.conv5_up = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)
+        self.conv4_up = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)
+        self.conv3_up = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)
 
         # PAN
-        self.conv3_down = ConvNormAct(align_channels, align_channels, 3, act_layer=Act)
+        self.conv3_down = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)
         self.downsample_p3 = ConvNormAct(align_channels, align_channels, 3, stride=2, apply_act=False, apply_norm=False)
-        self.conv4_down = ConvNormAct(align_channels, align_channels, 3, act_layer=Act)
+        self.conv4_down = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)
         self.downsample_p4 = ConvNormAct(align_channels, align_channels, 3, stride=2, apply_act=False, apply_norm=False)
-        self.conv5_down = ConvNormAct(align_channels, align_channels, 3, act_layer=Act)
+        self.conv5_down = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)
 
         self.out_channels = [align_channels, align_channels, align_channels]
 
@@ -178,27 +174,27 @@ class BiFPN(nn.Module):
 class DensAttFPN(nn.Module):
     def __init__(self, in_channels: List[int], align_channels: int = 160, att_type: Optional[str] = None):
         super().__init__()
-        self.align_p2 = ConvNormAct(in_channels[-4], align_channels, 1, act_layer=Act)
-        self.align_p3 = ConvNormAct(in_channels[-3], align_channels, 1, act_layer=Act)
-        self.align_p4 = ConvNormAct(in_channels[-2], align_channels, 1, act_layer=Act)
-        self.align_p5 = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=Act)
+        self.align_p2 = ConvNormAct(in_channels[-4], align_channels, 1, act_layer=ConvAct)
+        self.align_p3 = ConvNormAct(in_channels[-3], align_channels, 1, act_layer=ConvAct)
+        self.align_p4 = ConvNormAct(in_channels[-2], align_channels, 1, act_layer=ConvAct)
+        self.align_p5 = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=ConvAct)
         
         # FPN
         # FPN
         self.fuse4_up = AttFuse(align_channels, att_type)
         self.conv4_up = UniversalInvertedResidual(align_channels, align_channels,
-                                                  exp_ratio=6, act_layer=Act, layer_scale_init_value=None)
+                                                  exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
         self.fuse3_up = AttFuse(align_channels, att_type)
         self.conv3_up = UniversalInvertedResidual(align_channels, align_channels,
-                                                  exp_ratio=6, act_layer=Act, layer_scale_init_value=None)
+                                                  exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
 
         # PAN
         self.downsample_p3 = ConvNormAct(align_channels, align_channels, 3, stride=2, apply_act=False, apply_norm=False)
         self.conv4_down = UniversalInvertedResidual(align_channels, align_channels,
-                                                    exp_ratio=6, act_layer=Act, layer_scale_init_value=None)
+                                                    exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
         self.downsample_p4 = ConvNormAct(align_channels, align_channels, 3, stride=2, apply_act=False, apply_norm=False)
         self.conv5_down = UniversalInvertedResidual(align_channels, align_channels,
-                                                    exp_ratio=6, act_layer=Act, layer_scale_init_value=None)
+                                                    exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
 
         self.out_channels = [align_channels, align_channels, align_channels]
     

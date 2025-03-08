@@ -37,6 +37,11 @@ class Checkpoint(Callback):
             torch.save(trainer.model.state_dict(), self.dirpath / self.filename)
             if self.verbose:
                 rich.print(f"Save best model with {self.monitor}: {self.best} at {self.dirpath / self.filename}")
+            best_dict = {
+                "ori_error": trainer.metrics_dict["val/ori_error"],
+                "pos_error": trainer.metrics_dict["val/pos_error"],
+            }
+            trainer.log_dict(best_dict, 0, prefix="best")
         # Save last model
         if self.save_last and trainer.now_epoch == trainer.config.epochs:
             last_path = self.dirpath / "last.pth"

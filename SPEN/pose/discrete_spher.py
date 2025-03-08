@@ -119,9 +119,9 @@ class DiscreteSpherDecoder(DiscreteSpher):
         Returns:
             np.ndarray: the decoded position in the format of (x, y, z)
         """
-        r_encode = pos_pre_dict["r_encode"]
-        theta_encode = pos_pre_dict["theta_encode"]
-        phi_encode = pos_pre_dict["phi_encode"]
+        r_encode = torch.exp(pos_pre_dict["r_encode"])
+        theta_encode = torch.exp(pos_pre_dict["theta_encode"])
+        phi_encode = torch.exp(pos_pre_dict["phi_encode"])
         
         r_decode = torch.sum(r_encode * self.r_range, dim=1)
         theta_decode = torch.sum(theta_encode * self.theta_range, dim=1)

@@ -25,9 +25,15 @@ class DiscreteEuler():
         self.yaw_len = int(360 // stride + 1 + 2*neighbor)
         self.pitch_len = int(180 // stride + 1 + 2*neighbor)
         self.roll_len = int(360 // stride + 1 + 2*neighbor)
-        self.yaw_range = torch.linspace(-neighbor * stride, 360 + neighbor * stride, self.yaw_len, device=device) - 180        # -180 ~ 180
-        self.pitch_range = torch.linspace(-neighbor * stride, 180 + neighbor * stride, self.pitch_len, device=device) - 90        # -90 ~ 90
-        self.roll_range = torch.linspace(-neighbor * stride, 360 + neighbor * stride, self.roll_len, device=device) - 180        # -180 ~ 180
+        self.yaw_range = torch.linspace(-neighbor * stride, 360 + neighbor * stride, self.yaw_len) - 180        # -180 ~ 180
+        self.pitch_range = torch.linspace(-neighbor * stride, 180 + neighbor * stride, self.pitch_len) - 90        # -90 ~ 90
+        self.roll_range = torch.linspace(-neighbor * stride, 360 + neighbor * stride, self.roll_len) - 180        # -180 ~ 180
+        self.yaw_range.requires_grad_(False)
+        self.pitch_range.requires_grad_(False)
+        self.roll_range.requires_grad_(False)
+        self.yaw_range = self.yaw_range.to(device)
+        self.pitch_range = self.pitch_range.to(device)
+        self.roll_range = self.roll_range.to(device)
         self.yaw_index_dict = {int(yaw // stride): i for i, yaw in enumerate(self.yaw_range)}
         self.pitch_index_dict = {int(pitch // stride): i for i, pitch in enumerate(self.pitch_range)}
         self.roll_index_dict = {int(roll // stride): i for i, roll in enumerate(self.roll_range)}
@@ -137,9 +143,9 @@ class DiscreteEulerDecoder(DiscreteEuler):
             ori (Tensor): the Euler angle in quaternion format
         """
         
-        yaw_encode = ori_pre_dict["yaw_encode"]
-        pitch_encode = ori_pre_dict["pitch_encode"]
-        roll_encode = ori_pre_dict["roll_encode"]
+        yaw_encode = torch.exp(ori_pre_dict["yaw_encode"])
+        pitch_encode = torch.exp(ori_pre_dict["pitch_encode"])
+        roll_encode = torch.exp(ori_pre_dict["roll_encode"])
 
         yaw_decode = torch.sum(yaw_encode * self.yaw_range, dim=1)
         pitch_decode = torch.sum(pitch_encode * self.pitch_range, dim=1)

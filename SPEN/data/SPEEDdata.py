@@ -88,6 +88,9 @@ class SPEEDDataset(Dataset):
         # resize the image
         self.resize = A.Compose([A.Resize(*config.image_size, interpolation=cv.INTER_LINEAR, p=1.0)],
                                 bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
+        if config.resize_first:
+            self.resize_first = A.Compose([A.Resize(*config.image_first_size, interpolation=cv.INTER_LINEAR, p=1.0)],
+                                          bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
         # transform the image to tensor
         self.image2tensor = v2.Compose([
             v2.ToImage(),
@@ -163,6 +166,20 @@ class SPEEDDataset(Dataset):
         """
         transformed = self.resize(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
         return transformed["image"], transformed["bboxes"].reshape(4).astype(np.int32)
+
+    def _resize_image_first(self, image: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Resize the image and the bounding box.
+
+        Args:
+            image (np.ndarray): The image data.
+            box (np.ndarray): The bounding box.
+        
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: The resized image and bounding box.
+        """
+        transformed = self.resize_first(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
+        return transformed["image"], transformed["bboxes"].reshape(4).astype(np.int32)
         
 
 
@@ -188,7 +205,7 @@ class SPEEDTrainDataset(SPEEDDataset):
         
         # resize the image if resize first
         if self.resize_first:
-            image, box = self._resize_image(image, box)
+            image, box = self._resize_image_first(image, box)
         
         # data augmentation
         image = self.crop_and_paste(image, box)

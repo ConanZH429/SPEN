@@ -8,7 +8,7 @@ from ..TorchModel import Model
 
 from ..model import SPEN
 from ..cfg import SPEEDConfig
-from ..utils import PosLossFunc, OriLossFunc
+from ..utils import PosLossFunc, OriLossFunc, GradNormLoss, DynamicWeightAverageLoss
 from ..utils import PosLoss, OriLoss, Loss, PosError, OriError, Score
 from ..pose import get_ori_decoder, get_pos_decoder
 
@@ -94,18 +94,26 @@ class ImageModule(Model):
         # loss
         pos_loss_dict = self.pos_loss(pos_pre_dict, labels["pos_encode"])
         ori_loss_dict = self.ori_loss(ori_pre_dict, labels["ori_encode"])
+        # loss_dict = {}
+        # if self.BETA[0] != 0:
+        #     for key in pos_loss_dict.keys():
+        #         loss_dict[key] = pos_loss_dict[key] * self.BETA[0]
+        # if self.BETA[1] != 0:
+        #     for key in ori_loss_dict.keys():
+        #         loss_dict[key] = ori_loss_dict[key] * self.BETA[1]
+        # train_loss = self.DWALoss(loss_dict)
         pos_loss = torch.sum(torch.stack([val for val in pos_loss_dict.values()]))
         ori_loss = torch.sum(torch.stack([val for val in ori_loss_dict.values()]))
         train_loss = self.BETA[0] * pos_loss + self.BETA[1] * ori_loss
         # metrics
         self._update_train_metrics(num_samples, pos_loss_dict, ori_loss_dict, train_loss)
-        self._train_log()
+        self._train_log(log_online=False)
 
         return train_loss
     
     
     def on_train_epoch_end(self):
-        self._train_log()
+        self._train_log(log_online=True)
         self._train_metrics_reset()
     
     
@@ -125,11 +133,11 @@ class ImageModule(Model):
         self._update_val_metrics(num_samples, pos_loss_dict, ori_loss_dict, val_loss,
                                  pos_decode, labels["pos"],
                                  ori_decode, labels["ori"])
-        self._val_log()
+        self._val_log(log_online=False)
     
 
     def on_val_epoch_end(self):
-        self._val_log()
+        self._val_log(log_online=True)
         self._val_metrics_reset()
 
 
@@ -137,6 +145,20 @@ class ImageModule(Model):
         self.BETA = self.config.BETA         # loss function weight
         self.pos_loss = PosLossFunc(config.pos_type, config.pos_loss_type, **config.pos_loss_args[config.pos_loss_type])
         self.ori_loss = OriLossFunc(config.ori_type, config.ori_loss_type, **config.ori_loss_args[config.ori_loss_type])
+        # num_tasks = 0
+        # if config.pos_type == "Cart":
+        #     num_tasks += 1
+        # elif config.pos_type == "Spher":
+        #     num_tasks += 1
+        # elif config.pos_type == "DiscreteSpher":
+        #     num_tasks += 3
+        # if config.ori_type == "Quat":
+        #     num_tasks += 1
+        # elif config.ori_type == "Euler":
+        #     num_tasks += 1
+        # elif config.ori_type == "DiscreteEuler":
+        #     num_tasks += 3
+        # self.DWALoss = DynamicWeightAverageLoss(num_tasks, 1)
     
 
     def _metrics_init(self, config):
@@ -159,7 +181,7 @@ class ImageModule(Model):
         self.train_loss.update(loss, num_samples)
     
 
-    def _train_log(self):
+    def _train_log(self, log_online):
         data = {}
         data.update(self.train_pos_loss.compute())
         data.update(self.train_ori_loss.compute())
@@ -167,7 +189,8 @@ class ImageModule(Model):
         self.log_dict(data=data,
                       epoch=self.trainer.now_epoch,
                       on_bar=True,
-                      prefix="train")
+                      prefix="train",
+                      log_online=log_online)
     
 
     def _train_metrics_reset(self):
@@ -187,7 +210,7 @@ class ImageModule(Model):
         self.score.update(self.pos_error.compute(), self.ori_error.compute())
     
 
-    def _val_log(self):
+    def _val_log(self, log_online):
         data = {}
         data.update(self.val_pos_loss.compute())
         data.update(self.val_ori_loss.compute())
@@ -200,7 +223,8 @@ class ImageModule(Model):
         self.log_dict(data=data,
                       epoch=self.trainer.now_epoch,
                       on_bar=True,
-                      prefix="val")
+                      prefix="val",
+                      log_online=log_online)
     
 
     def _val_metrics_reset(self):

@@ -39,7 +39,7 @@ def get_scheduler(sheduler_type: str, optimizer: torch.optim.Optimizer, config: 
                                                                mode="min",
                                                                factor=0.5,
                                                                patience=10,
-                                                               cooldown=5,
+                                                               cooldown=2,
                                                                min_lr=lr_min)
         return scheduler
     else:

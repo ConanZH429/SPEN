@@ -18,14 +18,15 @@ class SPEEDConfig(Config):
         self.dataset_folder = Path("../datasets/speed")
         self.train_ratio = 0.85
         self.val_ratio = 0.15
-        self.cache = False
+        self.cache = True
         self.resize_first = False
+        self.image_first_size = (800, 1280)
         self.image_size = (480, 768)
 
         # train
         self.device = "cuda"
         self.epochs = 300
-        self.lr0 = 0.0003
+        self.lr0 = 0.001
         self.lr_min = 0.00001
         self.warmup_epochs = 3
         self.weight_decay = 0.00001
@@ -36,31 +37,28 @@ class SPEEDConfig(Config):
 
         # model
         # backbone
-        self.backbone = "mobilenetv4_conv_medium"
+        self.backbone = "resnet18"
         self.backbone_args = {
             "resnet18": {
                 "bin_folder" : "resnet18.a1_in1k",
-                "backbone_out_channels": [64, 64, 128, 256, 512],
             },
             "resnet34": {
                 "bin_folder" : "resnet34.a1_in1k",
-                "backbone_out_channels": [64, 64, 128, 256, 512],
             },
             "resnet50": {
                 "bin_folder" : "resnet50.a1_in1k",
-                "backbone_out_channels": [64, 256, 512, 1024, 2048],
+            },
+            "mobilenetv3_large_100": {
+                "bin_folder" : "mobilenetv3_large_100.ra_in1k",
             },
             "mobilenetv4_conv_small": {
                 "bin_folder": "mobilenetv4_conv_small.e3600_r256_in1k",
-                "backbone_out_channels": [64, 96, 128],
             },
             "mobilenetv4_conv_medium": {
                 "bin_folder": "mobilenetv4_conv_medium.e500_r256_in1k",
-                "backbone_out_channels": [32, 48, 80, 160, 256],
             },
             "mobilenetv4_conv_large": {
                 "bin_folder": "mobilenetv4_conv_large.e600_r384_in1k",
-                "backbone_out_channels": [24, 48, 96, 192, 512],
             },
         }
         # neck
@@ -68,13 +66,13 @@ class SPEEDConfig(Config):
         self.neck_args = {
             "IdentityNeck": {},
             "ConvNeck": {"align_channels": 160},
-            "TaileNeck": {"align_channels": 960},
+            "TaileNeck": {"align_channels": 460},
             "PAFPN": {"align_channels": 160},
             "BiFPN": {"align_channels": 160},
             "DensAttFPN": {"align_channels": 160, "att_type": None},
         }
         # head
-        self.pos_ratio = 0.5
+        self.pos_ratio = 0.25
         self.avg_size = (1,) if self.neck == "TaileNeck" else (1, 1, 1)
         
         # pos type
@@ -85,7 +83,7 @@ class SPEEDConfig(Config):
             "DiscreteSpher": {
                 "r_max": 50,
                 "r_stride": 1,
-                "angle_stride": 5,
+                "angle_stride": 1,
                 "alpha": 0.0,
                 "neighbor": 0,
                 "device": "cuda",
@@ -98,7 +96,7 @@ class SPEEDConfig(Config):
             "Quat": {},
             "Euler": {},
             "DiscreteEuler": {
-                "stride": 5,
+                "stride": 1,
                 "alpha": 0.0,
                 "neighbor": 0,
                 "device": "cuda"
@@ -115,7 +113,7 @@ class SPEEDConfig(Config):
             "SmoothL1": {"reduction": "mean",
                          "beta": 1.0},
             # disceretspher
-            "CE": {"reduction": "mean"},
+            "CE": {},
             "KL": {},
             "JS": {},
         }
@@ -133,13 +131,13 @@ class SPEEDConfig(Config):
             "SmoothL1": {"reduction": "mean",
                          "beta": 1.0},
             # discreteeuler
-            "CE": {"reduction": "mean"},
+            "CE": {},
             "KL": {},
             "JS": {},
         }
 
-        self.ALPHA = (1, 0)              # score
-        self.BETA = (1, 0)               # loss
+        self.ALPHA = (1, 1)              # score
+        self.BETA = (1, 1)               # loss
 
         # augmentation
         self.ZAxisRotation_p = 0.8

@@ -30,11 +30,13 @@ class Model(torch.nn.Module):
                  epoch: int,
                  on_bar: bool = False,
                  prefix: str = "",
-                 prefix_on_bar: str = ""
+                 prefix_on_bar: str = "",
+                 log_online: bool = True,
                  ):
         self.trainer.log_dict(data=data,
                               epoch=epoch,
                               on_bar=on_bar,
                               prefix=prefix,
-                              prefix_on_bar=prefix_on_bar
+                              prefix_on_bar=prefix_on_bar,
+                              log_online=log_online
                               )

@@ -13,13 +13,14 @@ from timm.layers.cbam import SpatialAttn, CbamModule
 from typing import Optional
 
 
-Act = nn.ReLU
+ConvAct = nn.Mish
+MLPAct = nn.Mish
 
 
 class DensFuse(nn.Module):
     def __init__(self, align_channels: int):
         super().__init__()
-        self.conv_downsample = ConvNormAct(align_channels, align_channels, 3, stride=2, act_layer=Act)
+        self.conv_downsample = ConvNormAct(align_channels, align_channels, 3, stride=2, act_layer=ConvAct)
     
     def forward(self, shallow_feature: Tensor, current_feature: Tensor, deep_feature: Tensor):
         feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=False)
@@ -30,22 +31,22 @@ class SSIAFuse(nn.Module):
     def __init__(self, align_channels: int):
         super().__init__()
         # spatial
-        self.conv3x3 = ConvNormAct(align_channels, 1, 3, stride=2, dilation=1, act_layer=Act)
-        self.conv5x5 = ConvNormAct(align_channels, 1, 5, stride=2, dilation=1, act_layer=Act)
-        self.conv7x7 = ConvNormAct(align_channels, 1, 3, stride=2, dilation=3, act_layer=Act)
-        self.conv9x9 = ConvNormAct(align_channels, 1, 5, stride=2, dilation=2, act_layer=Act)
+        self.conv3x3 = ConvNormAct(align_channels, 1, 3, stride=2, dilation=1, act_layer=ConvAct)
+        self.conv5x5 = ConvNormAct(align_channels, 1, 5, stride=2, dilation=1, act_layer=ConvAct)
+        self.conv7x7 = ConvNormAct(align_channels, 1, 3, stride=2, dilation=3, act_layer=ConvAct)
+        self.conv9x9 = ConvNormAct(align_channels, 1, 5, stride=2, dilation=2, act_layer=ConvAct)
         self.spatial_weight_conv = ConvNormAct(4, 1, 3, apply_act=False, apply_norm=False)
 
         # channel
         self.feature_weight = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
         self.channel_weight_conv = nn.Sequential(
             nn.Conv2d(align_channels, align_channels // 2, 1, bias=False),
-            Act(inplace=True),
+            ConvAct(inplace=True),
             nn.Conv2d(align_channels // 2, align_channels, 1, bias=False),
         )
 
         # fuse
-        self.conv_downsample = ConvNormAct(align_channels, align_channels, 3, stride=2, act_layer=Act)
+        self.conv_downsample = ConvNormAct(align_channels, align_channels, 3, stride=2, act_layer=ConvAct)
     
     def forward(self, shallow_feature: Tensor, current_feature: Tensor, deep_feature: Tensor):
         # spatial
@@ -73,7 +74,7 @@ class SSIAFuse(nn.Module):
 class Fuse(nn.Module):
     def __init__(self, align_channels: int):
         super().__init__()
-        self.conv_downsample = ConvNormAct(align_channels, align_channels, 3, stride=2, act_layer=Act)
+        self.conv_downsample = ConvNormAct(align_channels, align_channels, 3, stride=2, act_layer=ConvAct)
         self.attention = nn.Identity()
     
     def forward(self, shallow_feature: Tensor, current_feature: Tensor, deep_feature: Tensor):
@@ -85,7 +86,7 @@ class Fuse(nn.Module):
 class SEFuse(Fuse):
     def __init__(self, align_channels: int):
         super().__init__(align_channels)
-        self.attention = SEModule(align_channels, rd_ratio=1./16, act_layer=Act)
+        self.attention = SEModule(align_channels, rd_ratio=1./16, act_layer=ConvAct)
 
 
 class SAMFuse(Fuse):
@@ -96,7 +97,7 @@ class SAMFuse(Fuse):
 class CBAMFuse(Fuse):
     def __init__(self, align_channels: int):
         super().__init__(align_channels)
-        self.attention = CbamModule(align_channels, rd_ratio=1./16, act_layer=Act)
+        self.attention = CbamModule(align_channels, rd_ratio=1./16, act_layer=ConvAct)
 
 
 class AttFuse(nn.Module):

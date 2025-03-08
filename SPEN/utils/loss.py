@@ -4,26 +4,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class CrossEntropyLoss(nn.Module):
+    def __init__(self, **kwargs):
+        super(CrossEntropyLoss, self).__init__()
+    
+    def forward(self, pre: Tensor, label: Tensor):
+        return -torch.mean(torch.sum(label * pre, dim=1))
+
+
 class KLLoss(nn.Module):
     def __init__(self, **kwargs):
         super(KLLoss, self).__init__()
     
-    def forward(self, p, q):
-        return F.kl_div(torch.log(p), q, reduction="batchmean")
-
-
-class JSLoss(nn.Module):
-    def __init__(self):
-        super(JSLoss, self).__init__()
-    
-    def forward(self, p, q):
-        M = 0.5 * (p + q)
-
-        kl_p_m = F.kl_div(torch.log(p), M, reduction="batchmean")
-        kl_q_m = F.kl_div(torch.log(q), M, reduction="batchmean")
-
-        return 0.5 * (kl_p_m + kl_q_m)
-
+    def forward(self, pre, label):
+        return F.kl_div(pre, label, reduction="batchmean")
 
 
 # CartLoss
@@ -68,11 +62,8 @@ class SpherLoss(nn.Module):
 # DiscreteSpherLoss
 class DiscreteSpherLoss(nn.Module):
     loss_dict = {
-        "CE": nn.CrossEntropyLoss,
+        "CE": CrossEntropyLoss,
         "KL": KLLoss,
-        "JS": JSLoss,
-        "L1": nn.L1Loss,
-        "L2": nn.MSELoss
     }
 
     def __init__(self, loss_type: str = "CE", **kwargs):
@@ -144,6 +135,7 @@ class EulerLoss(nn.Module):
     loss_dict = {
         "L1": nn.L1Loss,
         "L2": nn.MSELoss,
+        "SmoothL1": nn.SmoothL1Loss,
     }
 
     def __init__(self, loss_type: str = "L1", **kwargs):
@@ -162,11 +154,8 @@ class EulerLoss(nn.Module):
 # DiscreteEulerLoss
 class DiscreteEulerLoss(nn.Module):
     loss_dict = {
-        "CE": nn.CrossEntropyLoss,
+        "CE": CrossEntropyLoss,
         "KL": KLLoss,
-        "JS": JSLoss,
-        "L1": nn.L1Loss,
-        "L2": nn.MSELoss
     }
 
     def __init__(self, loss_type: str = "CE", **kwargs):
@@ -215,3 +204,92 @@ class OriLossFunc(nn.Module):
     
     def forward(self, ori_pre_dict: dict[str, Tensor], ori_label_dict: dict[str, Tensor]) -> dict[str, Tensor]:
         return self.loss(ori_pre_dict, ori_label_dict)
+
+
+class DynamicWeightAverageLoss(nn.Module):
+    def __init__(self, num_tasks, T):
+        super(DynamicWeightAverageLoss, self).__init__()
+        self.num_tasks = num_tasks
+        self.T = T
+        self.last_loss_dict = {}
+    
+    def forward(self, loss_dict: dict[str, Tensor]) -> Tensor:
+        if not self.last_loss_dict:
+            weight_dict = {
+                k: torch.tensor(1.0, device="cuda") for k in loss_dict
+            }
+        else:
+            w_i_dict = {
+                k: loss_dict[k] / self.last_loss_dict[k] for k in loss_dict
+            }
+            exp_sum = torch.tensor(0.0, device="cuda")
+            for k in w_i_dict:
+                exp_sum += torch.exp(w_i_dict[k] / self.T)
+            weight_dict = {
+                k: self.num_tasks * torch.exp(w_i_dict[k] / self.T) / exp_sum for k in w_i_dict
+            }
+        loss = torch.tensor(0.0, device="cuda")
+        for k in loss_dict:
+            loss += weight_dict[k] * loss_dict[k]
+        self.last_loss_dict = {k: loss_dict[k].detach() for k in loss_dict}
+        return loss
+
+
+
+
+class GradNormLoss(nn.Module):
+    def __init__(self, num_tasks, alpha=1.5):
+        """
+        GradNormLoss 类用于实现 GradNorm 损失函数。
+        
+        参数:
+        num_tasks (int): 任务的数量。
+        alpha (float): 损失项的比例系数，默认为 1.5。
+        """
+        super(GradNormLoss, self).__init__()
+        self.num_tasks = num_tasks
+        self.alpha = alpha
+        # 初始化每个任务的权重，初始值为 1，并设置为可训练参数
+        self.weights = nn.Parameter(torch.ones(num_tasks, requires_grad=True))
+
+    def forward(self, losses, model):
+        """
+        前向传播函数，计算总的损失。
+
+        参数:
+        losses (list): 包含每个任务损失项的列表。
+        model (torch.nn.Module): 用于计算梯度的模型。
+
+        返回:
+        torch.Tensor: 总的损失值。
+        """
+        # 计算每个损失项的梯度范数
+        grads = []
+        for i, loss in enumerate(losses):
+            # 计算当前损失项对模型参数的梯度
+            grad = torch.autograd.grad(loss, model.parameters(), retain_graph=True)
+            # 计算梯度的范数
+            grad_norm = torch.norm(torch.stack([torch.norm(g) for g in grad]))
+            # 将梯度范数添加到列表中
+            grads.append(grad_norm)
+        
+        # 计算初始梯度范数
+        initial_grad_norm = torch.stack(grads).mean()
+
+        # 计算每个损失项的梯度范数相对于初始梯度范数的比例
+        relative_grad_norms = [grad / initial_grad_norm for grad in grads]
+
+        # 计算梯度范数的平均值
+        avg_relative_grad_norm = sum(relative_grad_norms) / len(relative_grad_norms)
+
+        # 计算梯度范数差异的平方
+        grad_norm_diff = [(relative_grad_norm - avg_relative_grad_norm) ** 2 for relative_grad_norm in relative_grad_norms]
+
+        # 计算 GradNorm 损失
+        gradnorm_loss = sum(grad_norm_diff) * self.alpha
+
+        # 计算加权后的总损失
+        weighted_losses = [w * loss for w, loss in zip(self.weights, losses)]
+        total_loss = sum(weighted_losses) + gradnorm_loss
+
+        return total_loss

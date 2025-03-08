@@ -186,7 +186,8 @@ class Trainer:
                  epoch: int,
                  on_bar: bool = False,
                  prefix: str = "",
-                 prefix_on_bar: str = ""
+                 prefix_on_bar: str = "",
+                 log_online: bool = True
                  ):
         data = {k: v.item() if isinstance(v, Tensor) else v for k, v in data.items()}
         if prefix:
@@ -200,4 +201,5 @@ class Trainer:
             else:
                 data_on_bar = data
             self.postfix_dict.update(data_on_bar)
-        self.logger.log_dict(data_log, epoch=epoch)
+        if log_online:
+            self.logger.log_dict(data_log, epoch=epoch)
