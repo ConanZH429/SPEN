@@ -54,7 +54,7 @@ def parse2config(config):
     config.cache = args.cache
     config.backbone = args.backbone
     config.neck = args.neck
-    config.att_type = args.att_type
+    config.neck_args["DensAttFPN"]["att_type"] = args.att_type
     config.pos_ratio = args.pos_ratio
     config.avg_size = tuple(map(int, args.avg_size))
     config.pos_type = args.pos_type

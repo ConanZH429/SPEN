@@ -18,9 +18,11 @@ class IdentityNeck(nn.Module):
     def __init__(self, in_channels: List[int]):
         super().__init__()
         self.out_channels = in_channels[-3:]
+        self.out_channels[-1] = 160
+        self.conv = ConvNormAct(in_channels[-1], 160, 1, act_layer=ConvAct)
     
     def forward(self, x: List[Tensor]):
-        return x[-3:]
+        return x[-3], x[-2], self.conv(x[-1])
 
 
 class TaileNeck(nn.Module):

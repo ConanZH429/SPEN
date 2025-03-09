@@ -61,7 +61,7 @@ class SSIAFuse(nn.Module):
         # channel
         avg_feature = F.adaptive_avg_pool2d(deep_feature, 1)
         max_feature = F.adaptive_max_pool2d(deep_feature, 1)
-        weight = F.softmax(self.feature_weight)
+        weight = F.softmax(self.feature_weight, dim=0)
         channel_feature = avg_feature * weight[0] + max_feature * weight[1]
         channel_weight = F.sigmoid(self.channel_weight_conv(channel_feature))  # B, C, 1, 1
 

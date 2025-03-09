@@ -31,7 +31,7 @@ class SPEEDConfig(Config):
         self.warmup_epochs = 3
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
-        self.scheduler = "OnPlateau"              # WarmupCosin, OnPlateau
+        self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau
         self.batch_size = 24
         self.num_workers = 6
 
@@ -64,12 +64,12 @@ class SPEEDConfig(Config):
         # neck
         self.neck = "TaileNeck"                  # IdentityNeck, ConvNeck, FPNPAN
         self.neck_args = {
+            "TaileNeck": {"align_channels": 460},
             "IdentityNeck": {},
             "ConvNeck": {"align_channels": 160},
-            "TaileNeck": {"align_channels": 460},
             "PAFPN": {"align_channels": 160},
             "BiFPN": {"align_channels": 160},
-            "DensAttFPN": {"align_channels": 160, "att_type": None},
+            "DensAttFPN": {"align_channels": 160, "att_type": None},    # SE, SAM, CBAM, SSIA
         }
         # head
         self.pos_ratio = 0.25
@@ -146,9 +146,9 @@ class SPEEDConfig(Config):
             "max_t": 5,
         }
 
-        self.Perspective_p = 0.0
+        self.Perspective_p = 0.8
         self.Perspective_args = {
-            "rotation_p": 0.0,
+            "rotation_p": 1.0,
             "max_angle": 90,
             "translation_p": 1.0,
             "max_x": 0.2,
