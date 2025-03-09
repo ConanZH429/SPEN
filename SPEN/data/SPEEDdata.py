@@ -43,17 +43,49 @@ def SPEED_split_dataset(config: SPEEDConfig = SPEEDConfig()):
     
     with open(dataset_folder / "train.json", "r") as f:
         label = json.load(f)
-    image_name_list = list(label.keys())
-    shuffle(image_name_list)
-    train_size = int(len(image_name_list) * config.train_ratio)
-    train_image_list = image_name_list[:train_size]
-    val_image_list = image_name_list[train_size:]
-    train_label = {k: label[k] for k in train_image_list}
-    val_label = {k: label[k] for k in val_image_list}
+    for key in label.keys():
+        label[key]["d"] = np.linalg.norm(np.array(label[key]["pos"]))
+    d_list = [0, 10, 20, 30, 40, 50]
+    d_count = [0] * 6
+    count_dict_key = ["0-10", "10-20", "20-30", "30-40", "40-50"]
+    count_dict = {
+        "0-10": [],
+        "10-20": [],
+        "20-30": [],
+        "30-40": [],
+        "40-50": []
+    }
+    for key in label.keys():
+        for i in range(5):
+            if label[key]["d"] >= d_list[i] and label[key]["d"] < d_list[i+1]:
+                d_count[i] += 1
+                count_dict[count_dict_key[i]].append(key)
+    for key in count_dict.keys():
+        shuffle(count_dict[key])
+    train_count_all = 10200
+    val_count_all = 1800
+    train_list = count_dict["40-50"]
+    val_list = []
+    train_list = []
+    val_list = []
+    train_count = int(len(count_dict["30-40"]) * 0.85)
+    train_list = train_list + count_dict["30-40"][:train_count]
+    val_list = val_list + count_dict["30-40"][train_count:]
+    train_count = int(len(count_dict["20-30"]) * 0.85)
+    train_list = train_list + count_dict["20-30"][:train_count]
+    val_list = val_list + count_dict["20-30"][train_count:]
+    train_count = int(len(count_dict["10-20"]) * 0.85)
+    train_list = train_list + count_dict["10-20"][:train_count]
+    val_list = val_list + count_dict["10-20"][train_count:]
+    train_count = train_count_all - len(train_list)
+    train_list = train_list + count_dict["0-10"][:train_count]
+    val_list = val_list + count_dict["0-10"][train_count:]
+    train_label = {k: label[k] for k in train_list}
+    val_label = {k: label[k] for k in val_list}
     with open(train_txt_path, "w") as f:
-        f.write("\n".join(train_image_list))
+        f.write("\n".join(train_list))
     with open(val_txt_path, "w") as f:
-        f.write("\n".join(val_image_list))
+        f.write("\n".join(val_list))
     with open(dataset_folder / "train_label.json", "w") as f:
         json.dump(train_label, f)
     with open(dataset_folder / "val_label.json", "w") as f:

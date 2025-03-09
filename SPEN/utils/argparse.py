@@ -18,6 +18,7 @@ def parse2config(config):
     # neck
     parser.add_argument("--neck", type=str, default=config.neck, help="Neck",
                         choices=list(config.neck_args.keys()))
+    parser.add_argument("--align_channels", type=int, default=160, help="Align channels")
     parser.add_argument("--att_type", type=str, default=config.neck_args["DensAttFPN"]["att_type"], help="Attention type",
                         choices=["SSIA", "SE", "SAM", "CBAM"])
     # head
@@ -54,6 +55,12 @@ def parse2config(config):
     config.cache = args.cache
     config.backbone = args.backbone
     config.neck = args.neck
+    config.neck_args["TaileNeck"]["align_channels"] = args.align_channels
+    config.neck_args["IdentityNeck"]["align_channels"] = args.align_channels
+    config.neck_args["ConvNeck"]["align_channels"] = args.align_channels
+    config.neck_args["PAFPN"]["align_channels"] = args.align_channels
+    config.neck_args["BiFPN"]["align_channels"] = args.align_channels
+    config.neck_args["DensAttFPN"]["align_channels"] = args.align_channels
     config.neck_args["DensAttFPN"]["att_type"] = args.att_type
     config.pos_ratio = args.pos_ratio
     config.avg_size = tuple(map(int, args.avg_size))

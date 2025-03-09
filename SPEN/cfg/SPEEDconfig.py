@@ -7,7 +7,7 @@ class SPEEDConfig(Config):
         super().__init__()
         # config
         self.exp_type = "test"
-        self.seed = 42
+        self.seed = 31
         self.deterministic = False
         self.benchmark = True
         self.debug = False
@@ -28,8 +28,8 @@ class SPEEDConfig(Config):
         self.epochs = 300
         self.lr0 = 0.001
         self.lr_min = 0.00001
-        self.warmup_epochs = 3
-        self.weight_decay = 0.00001
+        self.warmup_epochs = 5
+        self.weight_decay = 0
         self.optimizer = "AdamW"
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau
         self.batch_size = 24
@@ -64,8 +64,8 @@ class SPEEDConfig(Config):
         # neck
         self.neck = "TaileNeck"                  # IdentityNeck, ConvNeck, FPNPAN
         self.neck_args = {
-            "TaileNeck": {"align_channels": 460},
-            "IdentityNeck": {},
+            "TaileNeck": {"align_channels": 160},
+            "IdentityNeck": {"align_channels": 160},
             "ConvNeck": {"align_channels": 160},
             "PAFPN": {"align_channels": 160},
             "BiFPN": {"align_channels": 160},
@@ -146,9 +146,9 @@ class SPEEDConfig(Config):
             "max_t": 5,
         }
 
-        self.Perspective_p = 0.8
+        self.Perspective_p = 0.0
         self.Perspective_args = {
-            "rotation_p": 1.0,
+            "rotation_p": 0.0,
             "max_angle": 90,
             "translation_p": 1.0,
             "max_x": 0.2,

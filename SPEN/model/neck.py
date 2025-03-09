@@ -15,18 +15,18 @@ class ConvNeck(nn.Module):
 
 
 class IdentityNeck(nn.Module):
-    def __init__(self, in_channels: List[int]):
+    def __init__(self, in_channels: List[int], align_channels: int = 160):
         super().__init__()
         self.out_channels = in_channels[-3:]
-        self.out_channels[-1] = 160
-        self.conv = ConvNormAct(in_channels[-1], 160, 1, act_layer=ConvAct)
+        self.out_channels[-1] = align_channels
+        self.conv = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=ConvAct)
     
     def forward(self, x: List[Tensor]):
         return x[-3], x[-2], self.conv(x[-1])
 
 
 class TaileNeck(nn.Module):
-    def __init__(self, in_channels: List[int], align_channels: int = 460):
+    def __init__(self, in_channels: List[int], align_channels: int = 160):
         super().__init__()
         self.conv = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=ConvAct)
         self.out_channels = [align_channels]
@@ -199,6 +199,7 @@ class DensAttFPN(nn.Module):
                                                     exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
 
         self.out_channels = [align_channels, align_channels, align_channels]
+        self.weight_init()
     
     def forward(self, x: List[Tensor]):
         """
@@ -231,3 +232,17 @@ class DensAttFPN(nn.Module):
         p5_2 = self.conv5_down(p5_0 + self.downsample_p4(p4_2))
 
         return p3_1, p4_2, p5_2
+
+    def weight_init(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)

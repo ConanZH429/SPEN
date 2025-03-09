@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # ----------Logger----------
     comet_logger = CometLogger(
         api_key=config.comet_api,
-        project_name="SPEN",
+        project_name="SPEN300",
         experiment_name=config.name,
         online=not config.offline,
     )
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         callbacks=callbacks,
         device=config.device,
         logger=comet_logger,
-        gradient_clip_val=5.0
+        gradient_clip_val=1.0
     )
 
     trainer.fit(train_dataloader, val_dataloader)
