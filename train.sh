@@ -7,6 +7,11 @@
 
 # python3 train.py --cache --exp_type test --epochs 300 --batch_size 60 --num_workers 15 --backbone mobilenetv4_conv_small --neck TaileNeck --avg_size 2 --pos_type DiscreteSpher --pos_loss_type CE --r_stride 1 --angle_stride 10 --ori_type DiscreteEuler --ori_loss_type CE --stride 5 --discrete_euler_neighbor 1 --discrete_euler_alpha 0.3 --ALPHA 1 3 --BETA 0.2 0.8
 
+# ori_exp
+# python3 train.py --cache --exp_type cart_and_quat --epochs 300 --batch_size 60 --num_workers 20 --backbone mobilenetv4_conv_medium --neck TaileNeck --avg_size 1 --pos_ratio 0.2 --pos_type Cart --pos_loss_type L1 --ori_type Quat --ori_loss_type Cos --ALPHA 1 5 --BETA 0.2 0.8
+# python3 train.py --cache --exp_type cart_and_quat --epochs 300 --batch_size 60 --num_workers 20 --backbone mobilenetv4_conv_medium --neck TaileNeck --avg_size 1 --pos_ratio 0.2 --pos_type Cart --pos_loss_type L1 --ori_type Quat --ori_loss_type CosDistance --ALPHA 1 5 --BETA 0.2 0.8
+# python3 train.py --cache --exp_type cart_and_quat --epochs 300 --batch_size 60 --num_workers 20 --backbone mobilenetv4_conv_medium --neck TaileNeck --avg_size 1 --pos_ratio 0.2 --pos_type Cart --pos_loss_type L1 --ori_type Quat --ori_loss_type ExpCos --ALPHA 1 5 --BETA 0.2 0.8
+
 # pos_exp
 # python3 train.py --cache --exp_type pos_exp --epochs 300 --batch_size 60 --num_workers 15 --backbone mobilenetv4_conv_small --neck TaileNeck --avg_size 1 --pos_type Cart --pos_loss_type L1 --ALPHA 1 0 --BETA 1 0
 # python3 train.py --cache --exp_type pos_exp --epochs 300 --batch_size 60 --num_workers 15 --backbone mobilenetv4_conv_small --neck TaileNeck --avg_size 1 --pos_type Cart --pos_loss_type L2 --ALPHA 1 0 --BETA 1 0
@@ -96,4 +101,4 @@
 # python3 train.py --cache --exp_type neck --epochs 300 --batch_size 60 --num_workers 15 --backbone mobilenetv4_conv_medium --neck DensAttFPN --att_type SSIA --avg_size 2 2 2 --pos_type DiscreteSpher --pos_loss_type CE --r_stride 1 --angle_stride 10 --ori_type DiscreteEuler --ori_loss_type CE --stride 5 --discrete_euler_neighbor 1 --discrete_euler_alpha 0.3 --ALPHA 1 3 --BETA 0.2 0.8
 
 # best
-python3 train.py --cache --exp_type best --epochs 300 --batch_size 50 --num_workers 20 --backbone mobilenetv4_conv_medium --neck DensAttFPN --att_type SSIA --pos_ratio 0.2 --avg_size 2 3 4 --pos_type DiscreteSpher --pos_loss_type CE --r_stride 1 --angle_stride 5 --discrete_spher_neighbor 2 --discrete_spher_alpha 0.1 --ori_type DiscreteEuler --ori_loss_type CE --stride 5 --discrete_euler_neighbor 2 --discrete_euler_alpha 0.1 --ALPHA 1 10 --BETA 1 10
+python3 train.py --cache --exp_type best --epochs 300 --batch_size 50 --num_workers 20 --backbone mobilenetv3_large_100 --neck DensAttFPN --att_type SSIA --pos_ratio 0.1 --avg_size 4 3 2 --pos_type DiscreteSpher --pos_loss_type CE --r_stride 1 --angle_stride 5 --discrete_spher_neighbor 2 --discrete_spher_alpha 0.1 --ori_type DiscreteEuler --ori_loss_type CE --stride 5 --discrete_euler_neighbor 2 --discrete_euler_alpha 0.1 --ALPHA 1 5 --BETA 0.1 0.9

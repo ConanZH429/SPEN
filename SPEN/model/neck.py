@@ -174,39 +174,31 @@ class BiFPN(nn.Module):
 
 
 class DensAttFPN(nn.Module):
-    def __init__(self, in_channels: List[int], align_channels: int = 160, att_type: Optional[str] = None):
+    def __init__(self, in_channels: List[int], att_type: Optional[str] = None):
         super().__init__()
-        # self.align_p2 = UniversalInvertedResidual(in_channels[-4], align_channels,
-        #                                           exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
-        # self.align_p3 = UniversalInvertedResidual(in_channels[-3], align_channels,
-        #                                           exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
-        # self.align_p4 = UniversalInvertedResidual(in_channels[-2], align_channels,
-        #                                           exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
-        # self.align_p5 = UniversalInvertedResidual(in_channels[-1], align_channels,
-        #                                           exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
-        self.align_p2 = ConvNormAct(in_channels[-4], align_channels, 1, act_layer=ConvAct)
-        self.align_p3 = ConvNormAct(in_channels[-3], align_channels, 1, act_layer=ConvAct)
-        self.align_p4 = ConvNormAct(in_channels[-2], align_channels, 1, act_layer=ConvAct)
-        self.align_p5 = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=ConvAct)
+        # self.align_p2 = ConvNormAct(in_channels[-4], align_channels, 3, act_layer=ConvAct)
+        # self.align_p3 = ConvNormAct(in_channels[-3], align_channels, 3, act_layer=ConvAct)
+        # self.align_p4 = ConvNormAct(in_channels[-2], align_channels, 3, act_layer=ConvAct)
+        # self.align_p5 = ConvNormAct(in_channels[-1], align_channels, 3, act_layer=ConvAct)
         
         # FPN
         # FPN
-        self.fuse4_up = AttFuse(align_channels, att_type)
-        self.conv4_up = UniversalInvertedResidual(align_channels, align_channels,
+        self.fuse4_up = AttFuse(in_channels[-3:], att_type)
+        self.conv4_up = UniversalInvertedResidual(sum(in_channels[-3:]), in_channels[-2],
                                                   exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
-        self.fuse3_up = AttFuse(align_channels, att_type)
-        self.conv3_up = UniversalInvertedResidual(align_channels, align_channels,
+        self.fuse3_up = AttFuse(in_channels[-4:-1], att_type)
+        self.conv3_up = UniversalInvertedResidual(sum(in_channels[-4:-1]), in_channels[-3],
                                                   exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
 
         # PAN
-        self.downsample_p3 = ConvNormAct(align_channels, align_channels, 3, stride=2, apply_act=False, apply_norm=False)
-        self.conv4_down = UniversalInvertedResidual(align_channels, align_channels,
+        self.downsample_p3 = ConvNormAct(in_channels[-3], in_channels[-3], 3, stride=2, apply_act=False, apply_norm=False)
+        self.conv4_down = UniversalInvertedResidual(sum(in_channels[-3:-1]), in_channels[-2],
                                                     exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
-        self.downsample_p4 = ConvNormAct(align_channels, align_channels, 3, stride=2, apply_act=False, apply_norm=False)
-        self.conv5_down = UniversalInvertedResidual(align_channels, align_channels,
+        self.downsample_p4 = ConvNormAct(in_channels[-2], in_channels[-2], 3, stride=2, apply_act=False, apply_norm=False)
+        self.conv5_down = UniversalInvertedResidual(sum(in_channels[-2:]), in_channels[-1],
                                                     exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
 
-        self.out_channels = [align_channels, align_channels, align_channels]
+        self.out_channels = in_channels[-3:]
         self.weight_init()
     
     def forward(self, x: List[Tensor]):
@@ -226,18 +218,21 @@ class DensAttFPN(nn.Module):
             P2_0
         """
         # align
-        p2_0 = self.align_p2(x[-4])
-        p3_0 = self.align_p3(x[-3])
-        p4_0 = self.align_p4(x[-2])
-        p5_0 = self.align_p5(x[-1])
+        # p2_0 = self.align_p2(x[-4])
+        # p3_0 = self.align_p3(x[-3])
+        # p4_0 = self.align_p4(x[-2])
+        # p5_0 = self.align_p5(x[-1])
+        p2_0, p3_0, p4_0, p5_0 = x[-4:]
 
         # FPN
         p4_1 = self.conv4_up(self.fuse4_up(p3_0, p4_0, p5_0))
         p3_1 = self.conv3_up(self.fuse3_up(p2_0, p3_0, p4_0))
 
         # PAN
-        p4_2 = self.conv4_down(p4_1 + self.downsample_p3(p3_1))
-        p5_2 = self.conv5_down(p5_0 + self.downsample_p4(p4_2))
+        # p4_2 = self.conv4_down(p4_1 + self.downsample_p3(p3_1))
+        # p5_2 = self.conv5_down(p5_0 + self.downsample_p4(p4_2))
+        p4_2 = self.conv4_down(torch.cat([p4_1, self.downsample_p3(p3_1)], dim=1))
+        p5_2 = self.conv5_down(torch.cat([p5_0, self.downsample_p4(p4_2)], dim=1))
 
         return p3_1, p4_2, p5_2
 

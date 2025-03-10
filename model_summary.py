@@ -4,10 +4,10 @@ from SPEN.cfg import SPEEDConfig
 import torch
 
 config = SPEEDConfig()
-config.backbone = "mobilenetv4_conv_medium"
+config.backbone = "mobilenetv3_large_100"
 config.neck = "DensAttFPN"
 config.neck_args["DensAttFPN"]["att_type"] = "SSIA"
-config.avg_size = (2, 3, 4)
+config.avg_size = (4, 3, 2)
 config.pos_type = "DiscreteSpher"
 config.pos_loss_type = "CE"
 config.pos_args["DiscreteSpher"]["r_stride"] = 1

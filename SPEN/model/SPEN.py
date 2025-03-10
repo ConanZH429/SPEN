@@ -42,6 +42,10 @@ class SPEN(nn.Module):
                 backbone_out_channels[-1] = 256
             elif "large" in model_name:
                 backbone_out_channels[-1] = 512
+        elif "mobilenetv3" in model_name:
+            self.backbone.blocks.pop(-1)
+            self.backbone._stage_out_idx = (6, 5, 3, 2, 1)
+            backbone_out_channels[-1] = 160
         # neck
         Neck = SPEN.neck_dict[config.neck]
         self.neck = Neck(backbone_out_channels, **config.neck_args[config.neck])

@@ -27,7 +27,7 @@ class SPEEDConfig(Config):
         self.device = "cuda"
         self.epochs = 300
         self.lr0 = 0.001
-        self.lr_min = 0.00001
+        self.lr_min = 0.00005
         self.warmup_epochs = 5
         self.weight_decay = 0
         self.optimizer = "AdamW"
@@ -69,7 +69,7 @@ class SPEEDConfig(Config):
             "ConvNeck": {"align_channels": 160},
             "PAFPN": {"align_channels": 160},
             "BiFPN": {"align_channels": 160},
-            "DensAttFPN": {"align_channels": 160, "att_type": None},    # SE, SAM, CBAM, SSIA
+            "DensAttFPN": {"att_type": None},    # SE, SAM, CBAM, SSIA
         }
         # head
         self.pos_ratio = 0.25

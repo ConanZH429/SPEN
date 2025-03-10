@@ -60,7 +60,6 @@ def parse2config(config):
     config.neck_args["ConvNeck"]["align_channels"] = args.align_channels
     config.neck_args["PAFPN"]["align_channels"] = args.align_channels
     config.neck_args["BiFPN"]["align_channels"] = args.align_channels
-    config.neck_args["DensAttFPN"]["align_channels"] = args.align_channels
     config.neck_args["DensAttFPN"]["att_type"] = args.att_type
     config.pos_ratio = args.pos_ratio
     config.avg_size = tuple(map(int, args.avg_size))
