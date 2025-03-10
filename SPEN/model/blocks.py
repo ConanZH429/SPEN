@@ -40,9 +40,9 @@ class SSIAFuse(nn.Module):
         # channel
         self.feature_weight = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
         self.channel_weight_conv = nn.Sequential(
-            nn.Conv2d(align_channels, align_channels, 1, bias=False),
+            nn.Conv2d(align_channels, align_channels // 2, 1, bias=False),
             ConvAct(inplace=True),
-            nn.Conv2d(align_channels, align_channels * 3 , 1, bias=False),
+            nn.Conv2d(align_channels // 2, align_channels , 1, bias=False),
         )
 
         # fuse
@@ -61,18 +61,12 @@ class SSIAFuse(nn.Module):
         # channel
         avg_feature = F.adaptive_avg_pool2d(deep_feature, 1)
         max_feature = F.adaptive_max_pool2d(deep_feature, 1)
-
         weight = F.sigmoid(self.feature_weight)
         channel_feature = avg_feature * weight[0] + max_feature * weight[1]
         channel_weight = F.sigmoid(self.channel_weight_conv(channel_feature))  # B, C, 1, 1
 
         # fusion
-        feature_fused = torch.cat([
-            self.conv_downsample(shallow_feature),
-            current_feature,
-            F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=False),
-        ], dim=1)
-        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=False)
+        feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=False)
         feature_fused = feature_fused * spatial_weight * channel_weight
         return feature_fused
 
@@ -84,12 +78,7 @@ class Fuse(nn.Module):
         self.attention = nn.Identity()
     
     def forward(self, shallow_feature: Tensor, current_feature: Tensor, deep_feature: Tensor):
-        feature_fused = torch.cat([
-            self.conv_downsample(shallow_feature),
-            current_feature,
-            F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=False),
-        ], dim=1)
-        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=False)
+        feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=False)
         feature_fused = self.attention(feature_fused)
         return feature_fused
 
@@ -97,7 +86,7 @@ class Fuse(nn.Module):
 class SEFuse(Fuse):
     def __init__(self, align_channels: int):
         super().__init__(align_channels)
-        self.attention = SEModule(align_channels * 3, rd_ratio=1./16, act_layer=ConvAct)
+        self.attention = SEModule(align_channels, rd_ratio=1./16, act_layer=ConvAct)
 
 
 class SAMFuse(Fuse):
@@ -108,7 +97,7 @@ class SAMFuse(Fuse):
 class CBAMFuse(Fuse):
     def __init__(self, align_channels: int):
         super().__init__(align_channels)
-        self.attention = CbamModule(align_channels * 3, rd_ratio=1./16, act_layer=ConvAct)
+        self.attention = CbamModule(align_channels, rd_ratio=1./16, act_layer=ConvAct)
 
 
 class AttFuse(nn.Module):

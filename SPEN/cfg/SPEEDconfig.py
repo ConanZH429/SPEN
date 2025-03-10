@@ -158,15 +158,15 @@ class SPEEDConfig(Config):
             "max_t": 5,
         }
 
-        self.CropAndPaste_p = 0.2
+        self.CropAndPaste_p = 0.5
 
-        self.CropAndPadSafe_p = 0.2
+        self.CropAndPadSafe_p = 0.5
 
-        self.DropBlockSafe_p = 0.2
+        self.DropBlockSafe_p = 0.5
         self.DropBlockSafe_args = {
-            "drop_num": 7,
+            "drop_num": 5,
         }
 
-        self.AlbumentationAug_p = 0.05
+        self.AlbumentationAug_p = 0.1
 
         self.name = ""
