@@ -82,12 +82,12 @@ class ImageModule(Model):
             if file.name != "__init__.py":
                 self.trainer.logger.log_code(file_path=file)
         # datasetsplit
-        father_folder = Path(".").resolve().parent()
-        dataset_foler = father_folder / "dataset" / "speed"
-        self.trainer.logger.log_dataset_split(dataset_foler / "train.txt")
-        self.trainer.logger.log_dataset_split(dataset_foler / "val.txt")
-        self.trainer.logger.log_dataset_split(dataset_foler / "train_label.json")
-        self.trainer.logger.log_dataset_split(dataset_foler / "val_label.json")
+        father_folder = Path(".").resolve().parent
+        dataset_foler = father_folder / "datasets" / "speed"
+        self.trainer.logger.log_code(dataset_foler / "train.txt")
+        self.trainer.logger.log_code(dataset_foler / "val.txt")
+        self.trainer.logger.log_code(dataset_foler / "train_label.json")
+        self.trainer.logger.log_code(dataset_foler / "val_label.json")
 
     
     

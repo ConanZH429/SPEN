@@ -41,7 +41,7 @@ class Checkpoint(Callback):
                 "ori_error": trainer.metrics_dict["val/ori_error"],
                 "pos_error": trainer.metrics_dict["val/pos_error"],
             }
-            trainer.log_dict(best_dict, 0, prefix="best")
+            trainer.log_dict(best_dict, trainer.now_epoch, prefix="best")
         # Save last model
         if self.save_last and trainer.now_epoch == trainer.config.epochs:
             last_path = self.dirpath / "last.pth"

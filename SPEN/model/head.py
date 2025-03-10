@@ -5,7 +5,6 @@ from typing import List
 class CartHead(nn.Module):
     def __init__(self, in_channels: int):
         super().__init__()
-        in_channels = in_channels // 2
         self.cart_fc = nn.Linear(in_channels, 3, bias=False)
     
     def forward(self, pos_feature: Tensor):
@@ -18,7 +17,6 @@ class CartHead(nn.Module):
 class SpherHead(nn.Module):
     def __init__(self, in_channels: int):
         super().__init__()
-        in_channels = in_channels // 2
         self.spher_fc = nn.Linear(in_channels, 3, bias=False)
     
     def forward(self, x: Tensor):
@@ -31,7 +29,6 @@ class SpherHead(nn.Module):
 class DiscreteSpherHead(nn.Module):
     def __init__(self, in_channels: int, angle_stride: int, r_stride: int, r_max: int, neighbor: int, **kwargs):
         super().__init__()
-        in_channels = in_channels // 2
         r_dim = r_max // r_stride + 1 + 2 * neighbor
         theta_dim = 90 // angle_stride + 1 + 2 * neighbor
         phi_dim = 360 // angle_stride + 1 + 2 * neighbor
@@ -59,7 +56,6 @@ class DiscreteSpherHead(nn.Module):
 class QuatHead(nn.Module):
     def __init__(self, in_channels: int):
         super().__init__()
-        in_channels = in_channels // 2
         self.quat_fc = nn.Linear(in_channels, 4, bias=False)
     
     def forward(self, x: Tensor):
@@ -73,7 +69,6 @@ class QuatHead(nn.Module):
 class EulerHead(nn.Module):
     def __init__(self, in_channels: int, **kwargs):
         super().__init__()
-        in_channels = in_channels // 2
         self.euler_fc = nn.Linear(in_channels, 3, bias=False)
     
     def forward(self, x: Tensor):
@@ -86,7 +81,6 @@ class EulerHead(nn.Module):
 class DiscreteEulerHead(nn.Module):
     def __init__(self, in_channels: int, stride: int, neighbor: int, **kwargs):
         super().__init__()
-        in_channels = in_channels // 2
         yaw_dim = 360 // stride + 1 + 2 * neighbor
         pitch_dim = 180 // stride + 1 + 2 * neighbor
         roll_dim = 360 // stride + 1 + 2 * neighbor
@@ -124,9 +118,9 @@ class Head(nn.Module):
     def __init__(self, in_channels: List[int], config):
         super().__init__()
         feature_dim = sum(channels*avg_size**2 for channels, avg_size in zip(in_channels, config.avg_size))
-        self.pos_dim = feature_dim
-        self.ori_dim = feature_dim
-        self.fuse_fc = Mlp(feature_dim, feature_dim // 2, feature_dim // 2, act_layer=MLPAct, bias=False)
+        self.pos_dim = int(feature_dim * config.pos_ratio)
+        self.ori_dim = feature_dim - self.pos_dim
+        self.fuse_fc = Mlp(feature_dim, feature_dim // 2, feature_dim , act_layer=MLPAct, bias=False)
         self.avg_size = config.avg_size
         PosHead = Head.pos_head_dict[config.pos_type]
         self.pos_head = PosHead(self.pos_dim, **config.pos_args[config.pos_type])
@@ -140,8 +134,7 @@ class Head(nn.Module):
         feature_pooled = [F.adaptive_avg_pool2d(x, avg_size).flatten(1) for x, avg_size in zip(features, self.avg_size)]
         feature_pooled = torch.cat(feature_pooled, dim=1)
         feature_fused = self.fuse_fc(feature_pooled)
-        pos_feature = feature_fused
-        ori_feature = feature_fused
+        pos_feature, ori_feature = feature_fused.split([self.pos_dim, self.ori_dim], dim=1)
         pos_pre_dict = self.pos_head(pos_feature)
         ori_pre_dict = self.ori_head(ori_feature)
         return pos_pre_dict, ori_pre_dict

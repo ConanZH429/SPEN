@@ -1,5 +1,8 @@
 import torch
 
+import torch.nn.functional as F
+from torch import linalg as LA
+
 from torch import Tensor
 from torchmetrics import Metric
 from typing import List
@@ -178,7 +181,7 @@ class PosError(Metric):
         self.add_state("num_samples", default=torch.tensor(0.0))
     
     def update(self, pos_pre: Tensor, pos_label: Tensor, num_samples: int):
-        self.pos_error += torch.sum(torch.norm(pos_pre - pos_label, dim=1) / torch.norm(pos_label, dim=1))
+        self.pos_error += torch.sum( LA.vector_norm(pos_pre - pos_label, dim=1) / LA.vector_norm(pos_label, dim=1) )
         self.num_samples += num_samples
         if torch.isnan(self.pos_error):
             print(pos_pre, pos_label)
@@ -202,8 +205,11 @@ class OriError(Metric):
         self.add_state("num_samples", default=torch.tensor(0.0))
     
     def update(self, ori_pre: Tensor, ori_label: Tensor, num_samples: int):
-        ori_pre_norm = ori_pre / torch.norm(ori_pre, dim=1, keepdim=True)
-        ori_inner_dot = torch.abs(torch.sum(ori_pre_norm * ori_label, dim=1, keepdim=True))
+        ori_pre_norm = F.normalize(ori_pre, p=2, dim=1)
+        ori_label_norm = F.normalize(ori_label, p=2, dim=1)
+        # ori_pre_norm = ori_pre / torch.norm(ori_pre, dim=1, keepdim=True)
+        # ori_label_norm = ori_label / torch.norm(ori_label, dim=1, keepdim=True)
+        ori_inner_dot = torch.abs(torch.sum(ori_pre_norm * ori_label_norm, dim=1))
         ori_inner_dot = torch.clamp(ori_inner_dot, max=1.0, min=-1.0)
         ori_error = torch.rad2deg(2 * torch.arccos(ori_inner_dot))
         self.ori_error += torch.sum(ori_error)

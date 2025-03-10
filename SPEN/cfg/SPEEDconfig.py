@@ -7,7 +7,7 @@ class SPEEDConfig(Config):
         super().__init__()
         # config
         self.exp_type = "test"
-        self.seed = 31
+        self.seed = 42
         self.deterministic = False
         self.benchmark = True
         self.debug = False
@@ -140,7 +140,7 @@ class SPEEDConfig(Config):
         self.BETA = (1, 1)               # loss
 
         # augmentation
-        self.ZAxisRotation_p = 0.8
+        self.ZAxisRotation_p = 1.0
         self.ZAxisRotation_args = {
             "max_angle": 180,
             "max_t": 5,
@@ -167,6 +167,6 @@ class SPEEDConfig(Config):
             "drop_num": 7,
         }
 
-        self.AlbumentationAug_p = 0.01
+        self.AlbumentationAug_p = 0.05
 
         self.name = ""
