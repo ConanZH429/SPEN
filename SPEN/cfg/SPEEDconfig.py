@@ -27,7 +27,7 @@ class SPEEDConfig(Config):
         self.device = "cuda"
         self.epochs = 300
         self.lr0 = 0.001
-        self.lr_min = 0.00005
+        self.lr_min = 0.000001
         self.warmup_epochs = 5
         self.weight_decay = 0
         self.optimizer = "AdamW"
@@ -113,9 +113,11 @@ class SPEEDConfig(Config):
             "SmoothL1": {"reduction": "mean",
                          "beta": 1.0},
             # disceretspher
+            "L1": {"reduction": "mean"},
             "CE": {},
             "KL": {},
             "JS": {},
+            "WassersteinLoss": {}
         }
         
         ## ori_loss
@@ -131,9 +133,11 @@ class SPEEDConfig(Config):
             "SmoothL1": {"reduction": "mean",
                          "beta": 1.0},
             # discreteeuler
+            "L1": {"reduction": "mean"},
             "CE": {},
             "KL": {},
             "JS": {},
+            "WassersteinLoss": {}
         }
 
         self.ALPHA = (1, 1)              # score
