@@ -68,7 +68,7 @@ class JSLoss(nn.Module):
     def forward(self, pre, label):
         m = 0.5 * (torch.exp(pre) + label)
         js1 = F.kl_div(pre, m, reduction="batchmean")
-        js2 = F.kl_div(torch.log(label+1e-9), m, reduction="batchmean")
+        js2 = F.kl_div(torch.log(label+1e-6), m, reduction="batchmean")
         return 0.5 * (js1 + js2)
 
 
