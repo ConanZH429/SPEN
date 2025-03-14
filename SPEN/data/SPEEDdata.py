@@ -105,6 +105,18 @@ class SPEEDDataset(Dataset):
         self.dataset_folder = config.dataset_folder
         self.cache = config.cache
         self.resize_first = config.resize_first
+        self.image_first_size = config.image_first_size
+        # resize the image
+        self.resize_func = A.Compose([A.Resize(*config.image_size, interpolation=cv.INTER_LINEAR, p=1.0)],
+                                bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
+        if config.resize_first:
+            self.resize_first_func = A.Compose([A.Resize(*config.image_first_size, interpolation=cv.INTER_LINEAR, p=1.0)],
+                                          bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
+        # transform the image to tensor
+        self.image2tensor = v2.Compose([
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True)
+        ])
         with open(self.dataset_folder / f"{mode}_label.json", "r") as f:
             self.label = json.load(f)
         self.image_list = list(self.label.keys())
@@ -117,17 +129,6 @@ class SPEEDDataset(Dataset):
         # cache the image data
         if self.cache:
             self._cache_image(self.image_list, self.dataset_folder)
-        # resize the image
-        self.resize = A.Compose([A.Resize(*config.image_size, interpolation=cv.INTER_LINEAR, p=1.0)],
-                                bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
-        if config.resize_first:
-            self.resize_first = A.Compose([A.Resize(*config.image_first_size, interpolation=cv.INTER_LINEAR, p=1.0)],
-                                          bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
-        # transform the image to tensor
-        self.image2tensor = v2.Compose([
-            v2.ToImage(),
-            v2.ToDtype(torch.float32, scale=True)
-        ])
         self.pos_encoder = get_pos_encoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_encoder = get_ori_encoder(config.ori_type, **config.ori_args[config.ori_type])
         self.len = int(len(self.image_list))
@@ -182,7 +183,12 @@ class SPEEDDataset(Dataset):
         with tqdm(image_list) as tbar:
             for image_name in tbar:
                 tbar.set_postfix_str(f"Loading {image_name}")
-                self.image_dict[image_name] = cv.imread(str(dataset_folder / "images" / "train" / image_name), cv.IMREAD_GRAYSCALE)
+                image = cv.imread(str(dataset_folder / "images" / "train" / image_name), cv.IMREAD_GRAYSCALE)
+                box = self.label[image_name]["bbox"]
+                if self.resize_first:
+                    image, box = self._resize_image_first(image, box)
+                self.image_dict[image_name] = image
+                self.label[image_name]["bbox"] = box
         return self.image_dict
     
     def _resize_image(self, image: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -196,7 +202,7 @@ class SPEEDDataset(Dataset):
         Returns:
             Tuple[np.ndarray, np.ndarray]: The resized image and bounding box.
         """
-        transformed = self.resize(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
+        transformed = self.resize_func(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
         return transformed["image"], transformed["bboxes"].reshape(4).astype(np.int32)
 
     def _resize_image_first(self, image: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -210,7 +216,7 @@ class SPEEDDataset(Dataset):
         Returns:
             Tuple[np.ndarray, np.ndarray]: The resized image and bounding box.
         """
-        transformed = self.resize_first(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
+        transformed = self.resize_first_func(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
         return transformed["image"], transformed["bboxes"].reshape(4).astype(np.int32)
         
 
@@ -235,10 +241,6 @@ class SPEEDTrainDataset(SPEEDDataset):
         image = self._get_image(self.image_list[index])
         pos, ori, box = self._get_label(self.image_list[index])
         
-        # resize the image if resize first
-        if self.resize_first:
-            image, box = self._resize_image_first(image, box)
-        
         # data augmentation
         image = self.crop_and_paste(image, box)
         image = self.crop_and_pad_safe(image, box)
@@ -247,9 +249,8 @@ class SPEEDTrainDataset(SPEEDDataset):
         image, pos, ori, box = self.persepctive_aug(image, pos, ori, box)
         image = self.albumentation_aug(image)
 
-        # resize the image if not resize first
-        if not self.resize_first:
-            image, box = self._resize_image(image, box)
+        # resize the image
+        image, box = self._resize_image(image, box)
 
         # transform the image to tensor
         image_tensor = self.image2tensor(image)

@@ -7,7 +7,7 @@ class SPEEDConfig(Config):
         super().__init__()
         # config
         self.exp_type = "test"
-        self.seed = 42
+        self.seed = 3407
         self.deterministic = False
         self.benchmark = True
         self.debug = False
@@ -19,19 +19,21 @@ class SPEEDConfig(Config):
         self.train_ratio = 0.85
         self.val_ratio = 0.15
         self.cache = True
-        self.resize_first = False
-        self.image_first_size = (800, 1280)
+        self.resize_first = True
+        self.image_first_size = (600, 960)
         self.image_size = (480, 768)
 
         # train
         self.device = "cuda"
         self.epochs = 300
-        self.lr0 = 0.001
-        self.lr_min = 0.000001
+        # self.lr0 = 0.001
+        # self.lr_min = 0.000001
+        self.lr0 = 1/2**10
+        self.lr_min = 1/2**20
         self.warmup_epochs = 5
         self.weight_decay = 0
         self.optimizer = "AdamW"
-        self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau
+        self.scheduler = "ReduceWarmupCosin"              # WarmupCosin, OnPlateau
         self.batch_size = 24
         self.num_workers = 6
 
@@ -72,7 +74,7 @@ class SPEEDConfig(Config):
             "DensAttFPN": {"att_type": None},    # SE, SAM, CBAM, SSIA
         }
         # head
-        self.pos_ratio = 0.25
+        self.pos_ratio = 0.5
         self.avg_size = (1,) if self.neck == "TaileNeck" else (1, 1, 1)
         
         # pos type

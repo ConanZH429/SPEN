@@ -13,8 +13,8 @@ from timm.layers.cbam import SpatialAttn, CbamModule
 from typing import Optional, List
 
 
-ConvAct = nn.SiLU
-MLPAct = nn.SiLU
+ConvAct = nn.Mish
+MLPAct = nn.Mish
 
 
 class DensFuse(nn.Module):

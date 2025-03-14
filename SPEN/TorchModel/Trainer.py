@@ -89,7 +89,7 @@ class Trainer:
             self.val_epoch_loop()
 
             if self.lr_scheduler is not None:
-                if self.lr_scheduler.__class__.__name__ == "ReduceLROnPlateau":
+                if self.lr_scheduler.__class__.__name__ in {"ReduceLROnPlateau", "ReduceWarmupCosinLR"}:
                     self.lr_scheduler.step(self.metrics_dict["val/score"])
                 else:
                     self.lr_scheduler.step()
