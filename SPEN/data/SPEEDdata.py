@@ -43,6 +43,7 @@ def SPEED_split_dataset(config: SPEEDConfig = SPEEDConfig()):
     
     with open(dataset_folder / "train.json", "r") as f:
         label = json.load(f)
+    total_count = len(label)
     for key in label.keys():
         label[key]["d"] = np.linalg.norm(np.array(label[key]["pos"]))
     d_list = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
@@ -67,38 +68,37 @@ def SPEED_split_dataset(config: SPEEDConfig = SPEEDConfig()):
                 count_dict[count_dict_key[i]].append(key)
     for key in count_dict.keys():
         shuffle(count_dict[key])
-    train_count_all = 10200
-    val_count_all = 1800
+    train_count_all = int(total_count * config.train_ratio)
+    val_count_all = total_count - train_count_all
     train_list = count_dict["45-50"]
     train_list = train_list + count_dict["40-45"]
     val_list = []
     train_list = []
-    val_list = []
-    train_count = int(len(count_dict["35-40"]) * 0.85)
+    train_count = int(len(count_dict["35-40"]) * config.train_ratio)
     train_list = train_list + count_dict["35-40"][:train_count]
     val_list = val_list + count_dict["35-40"][train_count:]
 
-    train_count = int(len(count_dict["30-35"]) * 0.85)
+    train_count = int(len(count_dict["30-35"]) * config.train_ratio)
     train_list = train_list + count_dict["30-35"][:train_count]
     val_list = val_list + count_dict["30-35"][train_count:]
 
-    train_count = int(len(count_dict["25-30"]) * 0.85)
+    train_count = int(len(count_dict["25-30"]) * config.train_ratio)
     train_list = train_list + count_dict["25-30"][:train_count]
     val_list = val_list + count_dict["25-30"][train_count:]
 
-    train_count = int(len(count_dict["20-25"]) * 0.85)
+    train_count = int(len(count_dict["20-25"]) * config.train_ratio)
     train_list = train_list + count_dict["20-25"][:train_count]
     val_list = val_list + count_dict["20-25"][train_count:]
 
-    train_count = int(len(count_dict["15-20"]) * 0.85)
+    train_count = int(len(count_dict["15-20"]) * config.train_ratio)
     train_list = train_list + count_dict["15-20"][:train_count]
     val_list = val_list + count_dict["15-20"][train_count:]
 
-    train_count = int(len(count_dict["10-15"]) * 0.85)
+    train_count = int(len(count_dict["10-15"]) * config.train_ratio)
     train_list = train_list + count_dict["10-15"][:train_count]
     val_list = val_list + count_dict["10-15"][train_count:]
 
-    train_count = int(len(count_dict["5-10"]) * 0.85)
+    train_count = int(len(count_dict["5-10"]) * config.train_ratio)
     train_list = train_list + count_dict["5-10"][:train_count]
     val_list = val_list + count_dict["5-10"][train_count:]
 

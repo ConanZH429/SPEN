@@ -45,7 +45,7 @@ if __name__ == "__main__":
         monitor_mode="min"
     )
     lr_monitor = LRMonitor()
-    model_summary = ModelSummary(input_size=(1, 1, *config.image_size))
+    model_summary = ModelSummary(input_size=(1, 1, *config.image_size), depth=4)
     callbacks = [checkpoint, lr_monitor, model_summary]
     # ----------Logger----------
     comet_logger = CometLogger(

@@ -16,8 +16,8 @@ class SPEEDConfig(Config):
 
         # dataset
         self.dataset_folder = Path("../datasets/speed")
-        self.train_ratio = 0.85
-        self.val_ratio = 0.15
+        self.train_ratio = 0.90
+        self.val_ratio = 0.10
         self.cache = True
         self.resize_first = True
         self.image_first_size = (1000, 1600)
@@ -26,7 +26,7 @@ class SPEEDConfig(Config):
 
         # train
         self.device = "cuda"
-        self.epochs = 400
+        self.epochs = 300
         self.lr0 = 0.001
         self.lr_min = 0.000001
         self.warmup_epochs = 3
@@ -35,14 +35,18 @@ class SPEEDConfig(Config):
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
         self.batch_size = 40
         self.num_workers = 20
+        self.compile = False
 
         # model
         # backbone
         self.backbone = "resnet18"
         self.backbone_args = {
+            "resnet18": {
+                "bin_folder" : "resnet18.a1_in1k",
+            },
             "mobilenetv3_large_100": {
                 "bin_folder" : "mobilenetv3_large_100.miil_in21k",
-            }
+            },
         }
         # neck
         self.neck = "TaileNeck"                  # IdentityNeck, ConvNeck, FPNPAN
@@ -55,7 +59,7 @@ class SPEEDConfig(Config):
             "DensAttFPN": {"att_type": None},    # SE, SAM, CBAM, SSIA
         }
         # head
-        self.pos_ratio = 0.2
+        self.weighted = False
         self.avg_size = (1,) if self.neck == "TaileNeck" else (1, 1, 1)
         
         # pos type

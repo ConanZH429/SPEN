@@ -32,9 +32,9 @@ class DiscreteSpherHead(nn.Module):
         r_dim = r_max // r_stride + 1 + 2 * neighbor
         theta_dim = 90 // angle_stride + 1 + 2 * neighbor
         phi_dim = 360 // angle_stride + 1 + 2 * neighbor
-        self.r_fc = nn.Linear(in_channels, r_dim, bias=False)
-        self.theta_fc = nn.Linear(in_channels, theta_dim, bias=False)
-        self.phi_fc = nn.Linear(in_channels, phi_dim, bias=False)
+        self.r_fc = nn.Linear(in_channels, r_dim)
+        self.theta_fc = nn.Linear(in_channels, theta_dim)
+        self.phi_fc = nn.Linear(in_channels, phi_dim)
     
     def forward(self, pos_feature: Tensor):
         r_encode = self.r_fc(pos_feature)
@@ -84,9 +84,9 @@ class DiscreteEulerHead(nn.Module):
         yaw_dim = 360 // stride + 1 + 2 * neighbor
         pitch_dim = 180 // stride + 1 + 2 * neighbor
         roll_dim = 360 // stride + 1 + 2 * neighbor
-        self.yaw_fc = nn.Linear(in_channels, yaw_dim, bias=False)
-        self.pitch_fc = nn.Linear(in_channels, pitch_dim, bias=False)
-        self.roll_fc = nn.Linear(in_channels, roll_dim, bias=False)
+        self.yaw_fc = nn.Linear(in_channels, yaw_dim)
+        self.pitch_fc = nn.Linear(in_channels, pitch_dim)
+        self.roll_fc = nn.Linear(in_channels, roll_dim)
 
     def forward(self, ori_feature: Tensor):
         yaw_encode = self.yaw_fc(ori_feature)
@@ -117,17 +117,22 @@ class Head(nn.Module):
     }
     def __init__(self, in_channels: List[int], config):
         super().__init__()
+        assert len(in_channels) == len(config.avg_size), f"in_channels length {len(in_channels)} != avg_size length {len(config.avg_size)}"
         feature_dim = sum(channels*avg_size**2 for channels, avg_size in zip(in_channels, config.avg_size))
-        # self.pos_dim = int(feature_dim * config.pos_ratio)
-        # self.ori_dim = feature_dim - self.pos_dim
-        # self.fuse_fc = Mlp(feature_dim, feature_dim, feature_dim , act_layer=MLPAct, bias=False)
+        self.fuse_fc = nn.Sequential(
+            nn.Linear(feature_dim, feature_dim),
+            MLPAct(inplace=True),
+        )
+        self.weighted = config.weighted
+        if config.weighted:
+            self.weight_fc = nn.Sequential(
+                nn.Linear(feature_dim, feature_dim//6),
+                MLPAct(inplace=True),
+                nn.Linear(feature_dim//6, feature_dim),
+                nn.Sigmoid()
+            )
         self.pos_dim = feature_dim
         self.ori_dim = feature_dim
-        self.fuse_fc = nn.Sequential(
-            nn.Linear(feature_dim, feature_dim, bias=False),
-            MLPAct(inplace=True),
-            # nn.Linear(feature_dim, feature_dim, bias=False),
-        )
         self.avg_size = config.avg_size
         PosHead = Head.pos_head_dict[config.pos_type]
         self.pos_head = PosHead(self.pos_dim, **config.pos_args[config.pos_type])
@@ -141,11 +146,11 @@ class Head(nn.Module):
         feature_pooled = [F.adaptive_avg_pool2d(x, avg_size).flatten(1) for x, avg_size in zip(features, self.avg_size)]
         feature_pooled = torch.cat(feature_pooled, dim=1)
         feature_fused = self.fuse_fc(feature_pooled)
-        # pos_feature, ori_feature = feature_fused.split([self.pos_dim, self.ori_dim], dim=1)
-        pos_feature = feature_fused
-        ori_feature = feature_fused
-        pos_pre_dict = self.pos_head(pos_feature)
-        ori_pre_dict = self.ori_head(ori_feature)
+        if self.weighted:
+            weight = self.weight_fc(feature_pooled)
+            feature_fused = feature_fused * weight
+        pos_pre_dict = self.pos_head(feature_fused)
+        ori_pre_dict = self.ori_head(feature_fused)
         return pos_pre_dict, ori_pre_dict
 
     def weight_init(self):

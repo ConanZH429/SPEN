@@ -32,4 +32,3 @@ class ModelSummary(Callback):
         }
         trainer.logger.log_dict(model_metrics, epoch=0)
         trainer.logger.log_text(str(result))
-        

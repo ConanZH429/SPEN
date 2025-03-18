@@ -7,6 +7,8 @@ def parse2config(config):
     # exp_type
     parser.add_argument("--exp_type", type=str, required=True, help="Experiment type")
     # train
+    parser.add_argument("--train_ratio", type=float, default=config.train_ratio, help="Train ratio")
+    parser.add_argument("--val_ratio", type=float, default=config.val_ratio, help="Validation ratio")
     parser.add_argument("--img_size", type=int, nargs="+", default=config.image_size, help="Image size")
     parser.add_argument("--epochs", type=int, default=config.epochs, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=config.batch_size, help="Batch size")
@@ -15,6 +17,7 @@ def parse2config(config):
     parser.add_argument("--optimizer", type=str, default=config.optimizer, help="Optimizer")
     parser.add_argument("--cache", action="store_true", help="Cache dataset")
     parser.add_argument("--lr0", type=float, default=config.lr0, help="Initial learning rate")
+    parser.add_argument("--compile", action="store_true", help="Compile")
     # backbone
     parser.add_argument("--backbone", type=str, default=config.backbone, help="Backbone",
                         choices=list(config.backbone_args.keys()))
@@ -25,7 +28,7 @@ def parse2config(config):
     parser.add_argument("--att_type", type=str, default=config.neck_args["DensAttFPN"]["att_type"], help="Attention type",
                         choices=["SSIA", "SE", "SAM", "CBAM"])
     # head
-    parser.add_argument("--pos_ratio", type=float, default=config.pos_ratio, help="Position feature ratio")
+    parser.add_argument("--weighted", action="store_true", help="Weighted")
     parser.add_argument("--avg_size", type=int, nargs="+", default=config.avg_size, help="global average pool size")
     # pos
     parser.add_argument("--pos_type", type=str, default=config.pos_type, help="Position type",
@@ -52,6 +55,8 @@ def parse2config(config):
     args = parser.parse_args()
 
     config.exp_type = args.exp_type
+    config.train_ratio = args.train_ratio
+    config.val_ratio = args.val_ratio
     config.image_size = tuple(map(int, args.img_size))
     config.epochs = args.epochs
     config.batch_size = args.batch_size
@@ -59,12 +64,14 @@ def parse2config(config):
     config.scheduler = args.scheduler
     config.optimizer = args.optimizer
     config.cache = args.cache
+    config.lr0 = args.lr0
+    config.compile = args.compile
     config.backbone = args.backbone
     config.neck = args.neck
     config.neck_args["PAFPN"]["align_channels"] = args.align_channels
     config.neck_args["BiFPN"]["align_channels"] = args.align_channels
     config.neck_args["DensAttFPN"]["att_type"] = args.att_type
-    config.pos_ratio = args.pos_ratio
+    config.weighted = args.weighted
     config.avg_size = tuple(map(int, args.avg_size))
     config.pos_type = args.pos_type
     config.pos_args["DiscreteSpher"]["r_stride"] = args.r_stride

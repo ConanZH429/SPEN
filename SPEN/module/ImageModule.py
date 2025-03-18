@@ -22,7 +22,8 @@ class ImageModule(Model):
         super().__init__()
         self.config = config
         self.model = SPEN(self.config)
-        self.model = torch.compile(self.model)
+        if self.config.compile:
+            self.model = torch.compile(self.model)
         self.pos_decoder = get_pos_decoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_decoder = get_ori_decoder(config.ori_type, **config.ori_args[config.ori_type])
         if self.config.pos_type == "DiscreteSpher":
@@ -50,7 +51,7 @@ class ImageModule(Model):
         table.add_row("lr_min", str(self.config.lr_min), "-")
         table.add_row("Backbone", self.config.backbone, dict2str(self.config.backbone_args[self.config.backbone]))
         table.add_row("Neck", self.config.neck, dict2str(self.config.neck_args[self.config.neck]))
-        table.add_row("Head", "Head", dict2str({"pos_ratio": self.config.pos_ratio, "avg_size": self.config.avg_size}))
+        table.add_row("Head", "Head", dict2str({"weighted": self.config.weighted, "avg_size": self.config.avg_size}))
         table.add_row("pos_type", self.config.pos_type, dict2str(self.config.pos_args[self.config.pos_type]))
         table.add_row("pos_loss_type", self.config.pos_loss_type, dict2str(self.config.pos_loss_args[self.config.pos_loss_type]))
         table.add_row("ori_type", self.config.ori_type, dict2str(self.config.ori_args[self.config.ori_type]))
