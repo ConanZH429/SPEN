@@ -7,9 +7,12 @@ def parse2config(config):
     # exp_type
     parser.add_argument("--exp_type", type=str, required=True, help="Experiment type")
     # train
+    parser.add_argument("--img_size", type=int, nargs="+", default=config.image_size, help="Image size")
     parser.add_argument("--epochs", type=int, default=config.epochs, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=config.batch_size, help="Batch size")
     parser.add_argument("--num_workers", type=int, default=config.num_workers, help="Number of workers")
+    parser.add_argument("--scheduler", type=str, default=config.scheduler, help="Scheduler")
+    parser.add_argument("--optimizer", type=str, default=config.optimizer, help="Optimizer")
     parser.add_argument("--cache", action="store_true", help="Cache dataset")
     parser.add_argument("--lr0", type=float, default=config.lr0, help="Initial learning rate")
     # backbone
@@ -49,15 +52,15 @@ def parse2config(config):
     args = parser.parse_args()
 
     config.exp_type = args.exp_type
+    config.image_size = tuple(map(int, args.img_size))
     config.epochs = args.epochs
     config.batch_size = args.batch_size
     config.num_workers = args.num_workers
+    config.scheduler = args.scheduler
+    config.optimizer = args.optimizer
     config.cache = args.cache
     config.backbone = args.backbone
     config.neck = args.neck
-    config.neck_args["TaileNeck"]["align_channels"] = args.align_channels
-    config.neck_args["IdentityNeck"]["align_channels"] = args.align_channels
-    config.neck_args["ConvNeck"]["align_channels"] = args.align_channels
     config.neck_args["PAFPN"]["align_channels"] = args.align_channels
     config.neck_args["BiFPN"]["align_channels"] = args.align_channels
     config.neck_args["DensAttFPN"]["att_type"] = args.att_type

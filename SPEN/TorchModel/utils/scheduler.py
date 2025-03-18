@@ -3,10 +3,11 @@ import math
 from torch.optim.lr_scheduler import LRScheduler
 
 from .config import Config
+import random
 
 
 class ReduceWarmupCosinLR(LRScheduler):
-    def __init__(self, optimizer, warmup_epoch, max_epoch, lr0, lr_min, factor, patience):
+    def __init__(self, optimizer, warmup_epoch, max_epoch, lr0, lr_min, factor, threshold, patience):
         self.optimizer = optimizer
         self.last_epoch = 0
         self.warmup_epoch = warmup_epoch
@@ -14,6 +15,7 @@ class ReduceWarmupCosinLR(LRScheduler):
         self.lr0 = lr0
         self.lr_min = lr_min
         self.factor = factor
+        self.threshold = threshold
         self.patience = patience
         self.lambda_max = lr0 / lr0
         self.lambda_min = lr_min / lr0
@@ -25,20 +27,20 @@ class ReduceWarmupCosinLR(LRScheduler):
     
     def step(self, metrics):
         current = float(metrics)
-        if current < self.best:
+        if self.best - current > self.threshold:
             self.best = current
             self.num_bad_epochs = 0
         else:
             self.num_bad_epochs += 1
         
         if self.num_bad_epochs > self.patience:
-            self.lambda_max /= self.factor
+            self.lambda_max = self._last_lr[0] * self.factor / self.lr0
             self.last_points = self.last_epoch + 1
             self.num_bad_epochs = 0
         
         values = self.get_lr()
         for param_group, lr in zip(self.optimizer.param_groups, values):
-            param_group['lr'] = lr
+            param_group['lr'] = lr + random.normalvariate(0, lr*0.01)
         
         self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
 
@@ -109,8 +111,9 @@ def get_scheduler(sheduler_type: str, optimizer: torch.optim.Optimizer, config: 
                                         max_epoch=max_epoch,
                                         lr0=config.lr0,
                                         lr_min=lr_min,
-                                        factor=1/2,
-                                        patience=10)
+                                        factor=3/4,
+                                        threshold=0.01,
+                                        patience=15)
         return scheduler
     else:
         raise ValueError(f"Invalid scheduler type: {sheduler_type}")

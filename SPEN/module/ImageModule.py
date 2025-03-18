@@ -8,10 +8,12 @@ from ..TorchModel import Model
 
 from ..model import SPEN
 from ..cfg import SPEEDConfig
-from ..utils import PosLossFunc, OriLossFunc, GradNormLoss, DynamicWeightAverageLoss
+from ..utils import PosLossFunc, OriLossFunc
 from ..utils import PosLoss, OriLoss, Loss, PosError, OriError, Score
 from ..pose import get_ori_decoder, get_pos_decoder
+from ..pose import DiscreteEuler2Euler, DiscreteSpher2Spher
 
+from typing import Dict
 
 
 
@@ -20,8 +22,13 @@ class ImageModule(Model):
         super().__init__()
         self.config = config
         self.model = SPEN(self.config)
-        self.ori_decoder = get_ori_decoder(config.ori_type, **config.ori_args[config.ori_type])
+        self.model = torch.compile(self.model)
         self.pos_decoder = get_pos_decoder(config.pos_type, **config.pos_args[config.pos_type])
+        self.ori_decoder = get_ori_decoder(config.ori_type, **config.ori_args[config.ori_type])
+        if self.config.pos_type == "DiscreteSpher":
+            self.discrete_spher2spher = DiscreteSpher2Spher(**config.pos_args[config.pos_type])
+        if self.config.ori_type == "DiscreteEuler":
+            self.discrete_euler2euler = DiscreteEuler2Euler(**config.ori_args[config.ori_type])
 
         self._loss_init(config)
 
@@ -83,11 +90,11 @@ class ImageModule(Model):
                 self.trainer.logger.log_code(file_path=file)
         # datasetsplit
         father_folder = Path(".").resolve().parent
-        dataset_foler = father_folder / "datasets" / "speed"
-        self.trainer.logger.log_code(dataset_foler / "train.txt")
-        self.trainer.logger.log_code(dataset_foler / "val.txt")
-        self.trainer.logger.log_code(dataset_foler / "train_label.json")
-        self.trainer.logger.log_code(dataset_foler / "val_label.json")
+        dataset_folder = father_folder / "datasets" / "speed"
+        self.trainer.logger.log_code(dataset_folder / "train.txt")
+        self.trainer.logger.log_code(dataset_folder / "val.txt")
+        self.trainer.logger.log_code(dataset_folder / "train_label.json")
+        self.trainer.logger.log_code(dataset_folder / "val_label.json")
 
     
     
@@ -102,19 +109,26 @@ class ImageModule(Model):
         # loss
         pos_loss_dict = self.pos_loss(pos_pre_dict, labels["pos_encode"])
         ori_loss_dict = self.ori_loss(ori_pre_dict, labels["ori_encode"])
-        # loss_dict = {}
-        # if self.BETA[0] != 0:
-        #     for key in pos_loss_dict.keys():
-        #         loss_dict[key] = pos_loss_dict[key] * self.BETA[0]
-        # if self.BETA[1] != 0:
-        #     for key in ori_loss_dict.keys():
-        #         loss_dict[key] = ori_loss_dict[key] * self.BETA[1]
-        # train_loss = self.DWALoss(loss_dict)
         pos_loss = torch.sum(torch.stack([val for val in pos_loss_dict.values()]))
         ori_loss = torch.sum(torch.stack([val for val in ori_loss_dict.values()]))
         train_loss = self.BETA[0] * pos_loss + self.BETA[1] * ori_loss
+        if self.config.pos_type == "DiscreteSpher":
+            spher_decode = self.discrete_spher2spher(pos_pre_dict)
+            spher_loss_dict = self.spher_loss(spher_decode, labels["spher"])
+            spher_loss = torch.sum(torch.stack([val for val in spher_loss_dict.values()]))
+            train_loss = train_loss + self.BETA[2] * spher_loss
+        if self.config.ori_type == "DiscreteEuler":
+            euler_decode = self.discrete_euler2euler(ori_pre_dict)
+            euler_loss_dict = self.euler_loss(euler_decode, labels["euler"])
+            euler_loss = torch.sum(torch.stack([val for val in euler_loss_dict.values()]))
+            train_loss = train_loss + self.BETA[3] * euler_loss
         # metrics
-        self._update_train_metrics(num_samples, pos_loss_dict, ori_loss_dict, train_loss)
+        loss_dict = {"pos": pos_loss_dict, "ori": ori_loss_dict}
+        if self.config.pos_type == "DiscreteSpher":
+            loss_dict["spher"] = spher_loss_dict
+        if self.config.ori_type == "DiscreteEuler":
+            loss_dict["euler"] = euler_loss_dict
+        self._update_train_metrics(num_samples, loss_dict, train_loss)
         self._train_log(log_online=False)
 
         return train_loss
@@ -153,25 +167,23 @@ class ImageModule(Model):
         self.BETA = self.config.BETA         # loss function weight
         self.pos_loss = PosLossFunc(config.pos_type, config.pos_loss_type, **config.pos_loss_args[config.pos_loss_type])
         self.ori_loss = OriLossFunc(config.ori_type, config.ori_loss_type, **config.ori_loss_args[config.ori_loss_type])
-        # num_tasks = 0
-        # if config.pos_type == "Cart":
-        #     num_tasks += 1
-        # elif config.pos_type == "Spher":
-        #     num_tasks += 1
-        # elif config.pos_type == "DiscreteSpher":
-        #     num_tasks += 3
-        # if config.ori_type == "Quat":
-        #     num_tasks += 1
-        # elif config.ori_type == "Euler":
-        #     num_tasks += 1
-        # elif config.ori_type == "DiscreteEuler":
-        #     num_tasks += 3
-        # self.DWALoss = DynamicWeightAverageLoss(num_tasks, 1)
-    
+        self.pos_loss = torch.compile(self.pos_loss)
+        self.ori_loss = torch.compile(self.ori_loss)
+        if config.pos_type == "DiscreteSpher":
+            self.spher_loss = PosLossFunc("Spher", "L1", **config.pos_loss_args["L1"])
+            self.spher_loss = torch.compile(self.spher_loss)
+        if config.ori_type == "DiscreteEuler":
+            self.euler_loss = OriLossFunc("Euler", "L1", **config.ori_loss_args["L1"])
+            self.euler_loss = torch.compile(self.euler_loss)
 
+    
     def _metrics_init(self, config):
         self.train_pos_loss = PosLoss(config.pos_type)
         self.train_ori_loss = OriLoss(config.ori_type)
+        if config.pos_type == "DiscreteSpher":
+            self.train_spher_loss = PosLoss("Spher")
+        if config.ori_type == "DiscreteEuler":
+            self.train_euler_loss = OriLoss("Euler")
         self.train_loss = Loss()
 
         self.val_pos_loss = PosLoss(config.pos_type)
@@ -183,9 +195,13 @@ class ImageModule(Model):
         self.score = Score(config.ALPHA)
 
 
-    def _update_train_metrics(self, num_samples: int, pos_loss_dict: dict[str, Tensor], ori_loss_dict: dict[str, Tensor], loss: Tensor):
-        self.train_pos_loss.update(pos_loss_dict, num_samples)
-        self.train_ori_loss.update(ori_loss_dict, num_samples)
+    def _update_train_metrics(self, num_samples: int, loss_dict: Dict[str, Dict[str, Tensor]], loss: Tensor):
+        self.train_pos_loss.update(loss_dict["pos"], num_samples)
+        self.train_ori_loss.update(loss_dict["ori"], num_samples)
+        if self.config.pos_type == "DiscreteSpher":
+            self.train_spher_loss.update(loss_dict["spher"], num_samples)
+        if self.config.ori_type == "DiscreteEuler":
+            self.train_euler_loss.update(loss_dict["euler"], num_samples)
         self.train_loss.update(loss, num_samples)
     
 
@@ -193,6 +209,10 @@ class ImageModule(Model):
         data = {}
         data.update(self.train_pos_loss.compute())
         data.update(self.train_ori_loss.compute())
+        if self.config.pos_type == "DiscreteSpher":
+            data.update(self.train_spher_loss.compute())
+        if self.config.ori_type == "DiscreteEuler":
+            data.update(self.train_euler_loss.compute())
         data.update({"loss": self.train_loss.compute()})
         self.log_dict(data=data,
                       epoch=self.trainer.now_epoch,
@@ -204,6 +224,10 @@ class ImageModule(Model):
     def _train_metrics_reset(self):
         self.train_pos_loss.reset()
         self.train_ori_loss.reset()
+        if self.config.pos_type == "DiscreteSpher":
+            self.train_spher_loss.reset()
+        if self.config.ori_type == "DiscreteEuler":
+            self.train_euler_loss.reset()
         self.train_loss.reset()
 
 

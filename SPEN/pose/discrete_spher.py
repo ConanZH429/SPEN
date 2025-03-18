@@ -8,7 +8,7 @@ class DiscreteSpher():
     discrete spherical coordinate probability distribution
     """
 
-    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cpu"):
+    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cuda"):
         """
         Args:
             angle_stride (int): the stride of the grid in polar and azimuthal angle
@@ -36,7 +36,7 @@ class DiscreteSpher():
     
 
 class DiscreteSpherEncoder(DiscreteSpher):
-    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cpu"):
+    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cuda"):
         """
         Args:
             angle_stride (int): the stride of the grid in polar and azimuthal angle
@@ -96,7 +96,7 @@ class DiscreteSpherEncoder(DiscreteSpher):
 
 
 class DiscreteSpherDecoder(DiscreteSpher):
-    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cpu"):
+    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cuda"):
         """
         Args:
             angle_stride (int): the stride of the grid in polar and azimuthal angle
@@ -122,6 +122,10 @@ class DiscreteSpherDecoder(DiscreteSpher):
         r_encode = torch.exp(pos_pre_dict["r_encode"])
         theta_encode = torch.exp(pos_pre_dict["theta_encode"])
         phi_encode = torch.exp(pos_pre_dict["phi_encode"])
+
+        # r_encode = torch.where(r_encode < 1e-6, torch.tensor(0, device=self.device), r_encode)
+        # theta_encode = torch.where(theta_encode < 1e-6, torch.tensor(0, device=self.device), theta_encode)
+        # phi_encode = torch.where(phi_encode < 1e-6, torch.tensor(0, device=self.device), phi_encode)
         
         r_decode = torch.sum(r_encode * self.r_range, dim=1)
         theta_decode = torch.sum(theta_encode * self.theta_range, dim=1)
@@ -135,3 +139,43 @@ class DiscreteSpherDecoder(DiscreteSpher):
         y = r_sin_theta * torch.sin(phi_decode)
 
         return torch.stack([x, y, z], dim=1)
+
+
+class DiscreteSpher2Spher(DiscreteSpher):
+    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cpu"):
+        """
+        Args:
+            angle_stride (int): the stride of the grid in polar and azimuthal angle
+            r_stride (int): the stride of the grid in radius
+            r_max (int): maximum radius value
+            alpha (float): the alpha value of the distribution
+            neighbor (int): the number of neighbors
+            device (str): the device
+        """
+        super().__init__(angle_stride, r_stride, r_max, alpha, neighbor, device)
+    
+    def __call__(self, pos_pre_dict: dict[str, Tensor]) -> Tensor:
+        """
+        convert the probability distribution to the discrete spherical coordinate
+
+        Args:
+            pos_pre_dict (dict[str, Tensor]): the probability distributions for radius, polar angle, and azimuthal angle
+
+        Returns:
+            Tensor: the discrete spherical coordinate
+        """
+        r_encode = torch.exp(pos_pre_dict["r_encode"])
+        theta_encode = torch.exp(pos_pre_dict["theta_encode"])
+        phi_encode = torch.exp(pos_pre_dict["phi_encode"])
+
+        # r_encode = torch.where(r_encode < 1e-6, torch.tensor(0, device=self.device), r_encode)
+        # theta_encode = torch.where(theta_encode < 1e-6, torch.tensor(0, device=self.device), theta_encode)
+        # phi_encode = torch.where(phi_encode < 1e-6, torch.tensor(0, device=self.device), phi_encode)
+        
+        r_decode = torch.sum(r_encode * self.r_range, dim=1)
+        theta_decode = torch.deg2rad(torch.sum(theta_encode * self.theta_range, dim=1))
+        phi_decode = torch.deg2rad(torch.sum(phi_encode * self.phi_range, dim=1))
+
+        return {
+            "spher": torch.stack([r_decode, theta_decode, phi_decode], dim=1)
+        }

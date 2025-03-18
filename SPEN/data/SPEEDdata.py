@@ -10,7 +10,7 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from random import shuffle
-from torchvision.transforms import v2
+from torchvision.transforms import v2, InterpolationMode
 from ..cfg import SPEEDConfig
 from .augmentation import DropBlockSafe, CropAndPadSafe, CropAndPaste, AlbumentationAug, ZAxisRotation, PerspectiveAug
 from .utils import MultiEpochsDataLoader
@@ -45,18 +45,23 @@ def SPEED_split_dataset(config: SPEEDConfig = SPEEDConfig()):
         label = json.load(f)
     for key in label.keys():
         label[key]["d"] = np.linalg.norm(np.array(label[key]["pos"]))
-    d_list = [0, 10, 20, 30, 40, 50]
-    d_count = [0] * 6
-    count_dict_key = ["0-10", "10-20", "20-30", "30-40", "40-50"]
+    d_list = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+    d_count = [0] * len(d_list)
+    count_dict_key = ["0-5", "5-10", "10-15", "15-20", "20-25", "25-30", "30-35", "35-40", "40-45", "45-50"]
     count_dict = {
-        "0-10": [],
-        "10-20": [],
-        "20-30": [],
-        "30-40": [],
-        "40-50": []
+        "0-5": [],
+        "5-10": [],
+        "10-15": [],
+        "15-20": [],
+        "20-25": [],
+        "25-30": [],
+        "30-35": [],
+        "35-40": [],
+        "40-45": [],
+        "45-50": [],
     }
     for key in label.keys():
-        for i in range(5):
+        for i in range(len(d_list) - 1):
             if label[key]["d"] >= d_list[i] and label[key]["d"] < d_list[i+1]:
                 d_count[i] += 1
                 count_dict[count_dict_key[i]].append(key)
@@ -64,22 +69,43 @@ def SPEED_split_dataset(config: SPEEDConfig = SPEEDConfig()):
         shuffle(count_dict[key])
     train_count_all = 10200
     val_count_all = 1800
-    train_list = count_dict["40-50"]
+    train_list = count_dict["45-50"]
+    train_list = train_list + count_dict["40-45"]
     val_list = []
     train_list = []
     val_list = []
-    train_count = int(len(count_dict["30-40"]) * 0.85)
-    train_list = train_list + count_dict["30-40"][:train_count]
-    val_list = val_list + count_dict["30-40"][train_count:]
-    train_count = int(len(count_dict["20-30"]) * 0.85)
-    train_list = train_list + count_dict["20-30"][:train_count]
-    val_list = val_list + count_dict["20-30"][train_count:]
-    train_count = int(len(count_dict["10-20"]) * 0.85)
-    train_list = train_list + count_dict["10-20"][:train_count]
-    val_list = val_list + count_dict["10-20"][train_count:]
+    train_count = int(len(count_dict["35-40"]) * 0.85)
+    train_list = train_list + count_dict["35-40"][:train_count]
+    val_list = val_list + count_dict["35-40"][train_count:]
+
+    train_count = int(len(count_dict["30-35"]) * 0.85)
+    train_list = train_list + count_dict["30-35"][:train_count]
+    val_list = val_list + count_dict["30-35"][train_count:]
+
+    train_count = int(len(count_dict["25-30"]) * 0.85)
+    train_list = train_list + count_dict["25-30"][:train_count]
+    val_list = val_list + count_dict["25-30"][train_count:]
+
+    train_count = int(len(count_dict["20-25"]) * 0.85)
+    train_list = train_list + count_dict["20-25"][:train_count]
+    val_list = val_list + count_dict["20-25"][train_count:]
+
+    train_count = int(len(count_dict["15-20"]) * 0.85)
+    train_list = train_list + count_dict["15-20"][:train_count]
+    val_list = val_list + count_dict["15-20"][train_count:]
+
+    train_count = int(len(count_dict["10-15"]) * 0.85)
+    train_list = train_list + count_dict["10-15"][:train_count]
+    val_list = val_list + count_dict["10-15"][train_count:]
+
+    train_count = int(len(count_dict["5-10"]) * 0.85)
+    train_list = train_list + count_dict["5-10"][:train_count]
+    val_list = val_list + count_dict["5-10"][train_count:]
+
+    
     train_count = train_count_all - len(train_list)
-    train_list = train_list + count_dict["0-10"][:train_count]
-    val_list = val_list + count_dict["0-10"][train_count:]
+    train_list = train_list + count_dict["0-5"][:train_count]
+    val_list = val_list + count_dict["0-5"][train_count:]
     train_label = {k: label[k] for k in train_list}
     val_label = {k: label[k] for k in val_list}
     with open(train_txt_path, "w") as f:
@@ -106,15 +132,13 @@ class SPEEDDataset(Dataset):
         self.cache = config.cache
         self.resize_first = config.resize_first
         self.image_first_size = config.image_first_size
-        # resize the image
-        self.resize_func = A.Compose([A.Resize(*config.image_size, interpolation=cv.INTER_LINEAR, p=1.0)],
-                                bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
         if config.resize_first:
             self.resize_first_func = A.Compose([A.Resize(*config.image_first_size, interpolation=cv.INTER_LINEAR, p=1.0)],
                                           bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
         # transform the image to tensor
         self.image2tensor = v2.Compose([
             v2.ToImage(),
+            v2.Resize(config.image_size, interpolation=InterpolationMode.BILINEAR),
             v2.ToDtype(torch.float32, scale=True)
         ])
         with open(self.dataset_folder / f"{mode}_label.json", "r") as f:
@@ -131,6 +155,8 @@ class SPEEDDataset(Dataset):
             self._cache_image(self.image_list, self.dataset_folder)
         self.pos_encoder = get_pos_encoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_encoder = get_ori_encoder(config.ori_type, **config.ori_args[config.ori_type])
+        self.spher_encoder = get_pos_encoder("Spher", **config.pos_args["Spher"])
+        self.euler_encoder = get_ori_encoder("Euler", **config.ori_args["Euler"])
         self.len = int(len(self.image_list))
     
     def __len__(self) -> int:
@@ -190,20 +216,6 @@ class SPEEDDataset(Dataset):
                 self.image_dict[image_name] = image
                 self.label[image_name]["bbox"] = box
         return self.image_dict
-    
-    def _resize_image(self, image: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Resize the image and the bounding box.
-
-        Args:
-            image (np.ndarray): The image data.
-            box (np.ndarray): The bounding box.
-        
-        Returns:
-            Tuple[np.ndarray, np.ndarray]: The resized image and bounding box.
-        """
-        transformed = self.resize_func(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
-        return transformed["image"], transformed["bboxes"].reshape(4).astype(np.int32)
 
     def _resize_image_first(self, image: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -217,7 +229,9 @@ class SPEEDDataset(Dataset):
             Tuple[np.ndarray, np.ndarray]: The resized image and bounding box.
         """
         transformed = self.resize_first_func(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
-        return transformed["image"], transformed["bboxes"].reshape(4).astype(np.int32)
+        image = transformed["image"]
+        bboxes = transformed["bboxes"].reshape(4).astype(np.int32)
+        return image, bboxes
         
 
 
@@ -249,22 +263,22 @@ class SPEEDTrainDataset(SPEEDDataset):
         image, pos, ori, box = self.persepctive_aug(image, pos, ori, box)
         image = self.albumentation_aug(image)
 
-        # resize the image
-        image, box = self._resize_image(image, box)
-
-        # transform the image to tensor
+        # resize and transform the image to tensor
         image_tensor = self.image2tensor(image)
         
         label = {
             "image_name": self.image_list[index],
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
-            "box": box.astype(np.int32),
         }
         # encode the position
         label["pos_encode"] = self.pos_encoder.encode(pos)
         # encode the orientation
         label["ori_encode"] = self.ori_encoder.encode(ori)
+        # transform the position to cart
+        label["spher"] = self.spher_encoder.encode(pos)
+        # transform the orientation to euler
+        label["euler"] = self.euler_encoder.encode(ori)
 
         return image_tensor, image, label
 
@@ -282,17 +296,13 @@ class SPEEDValDataset(SPEEDDataset):
         image = self._get_image(self.image_list[index])
         pos, ori, box = self._get_label(self.image_list[index])
 
-        # resize the image
-        image, box = self._resize_image(image, box)
-
-        # transform the image to tensor
+        # resize and transform the image to tensor
         image_tensor = self.image2tensor(image)
 
         label = {
             "image_name": self.image_list[index],
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
-            "box": box.astype(np.int32),
         }
         # encode the position
         label["pos_encode"] = self.pos_encoder.encode(pos)

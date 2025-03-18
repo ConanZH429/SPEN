@@ -23,6 +23,7 @@ class SPEN(nn.Module):
 
     def __init__(self, config: SPEEDConfig = SPEEDConfig()):
         super().__init__()
+        self.avg_size = config.avg_size
         # backbone
         model_name = config.backbone
         bin_folder = config.backbone_args[config.backbone]["bin_folder"]
@@ -43,12 +44,13 @@ class SPEN(nn.Module):
         # neck
         Neck = SPEN.neck_dict[config.neck]
         self.neck = Neck(backbone_out_channels, **config.neck_args[config.neck])
-        neck_out_channels = self.neck.out_channels
+        neck_out_channels = self.neck.out_channels[-len(config.avg_size):]
         # head
         self.head = Head(in_channels=neck_out_channels, config=config)
 
     def forward(self, x):
         feature_map = self.backbone(x)
         feature_map = self.neck(feature_map)
+        feature_map = feature_map[-len(self.avg_size):]
         pos_pre_dict, ori_pre_dict = self.head(feature_map)
         return pos_pre_dict, ori_pre_dict

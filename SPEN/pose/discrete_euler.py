@@ -10,7 +10,7 @@ class DiscreteEuler():
     discrete Euler angle probability distribution
     """
 
-    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cpu"):
+    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cuda"):
         """
         Args:
             stride (int): the stride of the grid
@@ -40,7 +40,7 @@ class DiscreteEuler():
 
 
 class DiscreteEulerEncoder(DiscreteEuler):
-    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cpu"):
+    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cuda"):
         """
         Args:
             stride (int): the stride of the grid
@@ -97,7 +97,7 @@ class DiscreteEulerEncoder(DiscreteEuler):
 
 
 class DiscreteEulerDecoder(DiscreteEuler):
-    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cpu"):
+    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cuda"):
         """
         Args:
             stride (int): the stride of the grid
@@ -147,6 +147,10 @@ class DiscreteEulerDecoder(DiscreteEuler):
         pitch_encode = torch.exp(ori_pre_dict["pitch_encode"])
         roll_encode = torch.exp(ori_pre_dict["roll_encode"])
 
+        # yaw_encode = torch.where(yaw_encode < 1e-6, torch.tensor(0, device=self.device), yaw_encode)
+        # pitch_encode = torch.where(pitch_encode < 1e-6, torch.tensor(0, device=self.device), pitch_encode)
+        # roll_encode = torch.where(roll_encode < 1e-6, torch.tensor(0, device=self.device), roll_encode)
+
         yaw_decode = torch.sum(yaw_encode * self.yaw_range, dim=1)
         pitch_decode = torch.sum(pitch_encode * self.pitch_range, dim=1)
         roll_decode = torch.sum(roll_encode * self.roll_range, dim=1)
@@ -168,3 +172,40 @@ class DiscreteEulerDecoder(DiscreteEuler):
         q3 = -sy * sp * cr + cy * cp * sr
         
         return torch.stack([q0, q1, q2, q3], dim=1)
+
+
+class DiscreteEuler2Euler(DiscreteEuler):
+    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cpu"):
+        """
+        Args:
+            stride (int): the stride of the grid
+            alpha (float): the alpha value of the distribution
+            neighbor (int): the number of neighbors
+            device (str): the device
+        """
+        super().__init__(stride, alpha, neighbor, device)
+    
+    def __call__(self, ori_pre_dict: dict[str, Tensor]) -> Tensor:
+        """
+        Convert the probability distribution to the Euler angle
+        Args:
+            ori_pre_dict (dict[str, Tensor]): the probability distributions for yaw, pitch, and roll
+        
+        Returns:
+            Tensor: the Euler angle in quaternion format
+        """
+        yaw_encode = torch.exp(ori_pre_dict["yaw_encode"])
+        pitch_encode = torch.exp(ori_pre_dict["pitch_encode"])
+        roll_encode = torch.exp(ori_pre_dict["roll_encode"])
+
+        # yaw_encode = torch.where(yaw_encode < 1e-6, torch.tensor(0, device=self.device), yaw_encode)
+        # pitch_encode = torch.where(pitch_encode < 1e-6, torch.tensor(0, device=self.device), pitch_encode)
+        # roll_encode = torch.where(roll_encode < 1e-6, torch.tensor(0, device=self.device), roll_encode)
+
+        yaw_decode = torch.sum(yaw_encode * self.yaw_range, dim=1)
+        pitch_decode = torch.sum(pitch_encode * self.pitch_range, dim=1)
+        roll_decode = torch.sum(roll_encode * self.roll_range, dim=1)
+        
+        return {
+            "euler": torch.deg2rad(torch.stack([yaw_decode, pitch_decode, roll_decode], dim=1))
+        }

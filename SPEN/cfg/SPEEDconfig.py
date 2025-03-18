@@ -7,7 +7,7 @@ class SPEEDConfig(Config):
         super().__init__()
         # config
         self.exp_type = "test"
-        self.seed = 3407
+        self.seed = 9999
         self.deterministic = False
         self.benchmark = True
         self.debug = False
@@ -20,61 +20,42 @@ class SPEEDConfig(Config):
         self.val_ratio = 0.15
         self.cache = True
         self.resize_first = True
-        self.image_first_size = (600, 960)
+        self.image_first_size = (1000, 1600)
         self.image_size = (480, 768)
+        # self.image_size = (416, 640)
 
         # train
         self.device = "cuda"
-        self.epochs = 300
-        # self.lr0 = 0.001
-        # self.lr_min = 0.000001
-        self.lr0 = 1/2**10
-        self.lr_min = 1/2**20
-        self.warmup_epochs = 5
-        self.weight_decay = 0
+        self.epochs = 400
+        self.lr0 = 0.001
+        self.lr_min = 0.000001
+        self.warmup_epochs = 3
+        self.weight_decay = 0.00001
         self.optimizer = "AdamW"
-        self.scheduler = "ReduceWarmupCosin"              # WarmupCosin, OnPlateau
-        self.batch_size = 24
-        self.num_workers = 6
+        self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
+        self.batch_size = 40
+        self.num_workers = 20
 
         # model
         # backbone
         self.backbone = "resnet18"
         self.backbone_args = {
-            "resnet18": {
-                "bin_folder" : "resnet18.a1_in1k",
-            },
-            "resnet34": {
-                "bin_folder" : "resnet34.a1_in1k",
-            },
-            "resnet50": {
-                "bin_folder" : "resnet50.a1_in1k",
-            },
             "mobilenetv3_large_100": {
-                "bin_folder" : "mobilenetv3_large_100.ra_in1k",
-            },
-            "mobilenetv4_conv_small": {
-                "bin_folder": "mobilenetv4_conv_small.e3600_r256_in1k",
-            },
-            "mobilenetv4_conv_medium": {
-                "bin_folder": "mobilenetv4_conv_medium.e500_r256_in1k",
-            },
-            "mobilenetv4_conv_large": {
-                "bin_folder": "mobilenetv4_conv_large.e600_r384_in1k",
-            },
+                "bin_folder" : "mobilenetv3_large_100.miil_in21k",
+            }
         }
         # neck
         self.neck = "TaileNeck"                  # IdentityNeck, ConvNeck, FPNPAN
         self.neck_args = {
-            "TaileNeck": {"align_channels": 160},
-            "IdentityNeck": {"align_channels": 160},
-            "ConvNeck": {"align_channels": 160},
+            "TaileNeck": {},
+            "IdentityNeck": {},
+            "ConvNeck": {},
             "PAFPN": {"align_channels": 160},
             "BiFPN": {"align_channels": 160},
             "DensAttFPN": {"att_type": None},    # SE, SAM, CBAM, SSIA
         }
         # head
-        self.pos_ratio = 0.5
+        self.pos_ratio = 0.2
         self.avg_size = (1,) if self.neck == "TaileNeck" else (1, 1, 1)
         
         # pos type
@@ -146,10 +127,10 @@ class SPEEDConfig(Config):
         self.BETA = (1, 1)               # loss
 
         # augmentation
-        self.ZAxisRotation_p = 1.0
+        self.ZAxisRotation_p = 0.8
         self.ZAxisRotation_args = {
             "max_angle": 180,
-            "max_t": 5,
+            "max_t": 7,
         }
 
         self.Perspective_p = 0.0
@@ -164,15 +145,15 @@ class SPEEDConfig(Config):
             "max_t": 5,
         }
 
-        self.CropAndPaste_p = 0.5
+        self.CropAndPaste_p = 0.2
 
-        self.CropAndPadSafe_p = 0.5
+        self.CropAndPadSafe_p = 0.2
 
-        self.DropBlockSafe_p = 0.5
+        self.DropBlockSafe_p = 0.2
         self.DropBlockSafe_args = {
-            "drop_num": 5,
+            "drop_num": 7,
         }
 
-        self.AlbumentationAug_p = 0.1
+        self.AlbumentationAug_p = 0.01
 
         self.name = ""

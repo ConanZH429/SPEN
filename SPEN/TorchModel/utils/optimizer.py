@@ -21,5 +21,7 @@ def get_optimizer(model: torch.nn.Module, optimizer_type: str, config: Config) -
         return torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     elif optimizer_type == "AdamW":
         return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    elif optimizer_type == "NAdam":
+        return torch.optim.NAdam(model.parameters(), lr=lr, weight_decay=weight_decay)
     else:
         raise ValueError(f"Invalid optimizer type: {optimizer_type}")
