@@ -66,7 +66,7 @@ if __name__ == "__main__":
         callbacks=callbacks,
         device=config.device,
         logger=comet_logger,
-        # gradient_clip_val=1.0
+        gradient_clip_val=config.gradient_clip_val,
     )
 
     trainer.fit(train_dataloader, val_dataloader)

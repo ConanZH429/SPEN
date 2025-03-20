@@ -212,7 +212,7 @@ class OriError(Metric):
         ori_inner_dot = torch.abs(torch.sum(ori_pre_norm * ori_label_norm, dim=1))
         ori_inner_dot = torch.clamp(ori_inner_dot, max=1.0, min=-1.0)
         ori_error = torch.rad2deg(2 * torch.arccos(ori_inner_dot))
-        self.ori_error += torch.sum(ori_error)
+        self.ori_error += torch.sum(ori_error[ori_error > 0.1532])
         self.num_samples += num_samples
         if torch.isnan(self.ori_error):
             print(ori_inner_dot)

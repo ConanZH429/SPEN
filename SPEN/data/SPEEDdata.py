@@ -6,6 +6,8 @@ import cv2 as cv
 import numpy as np
 import albumentations as A
 
+from PIL import Image
+from threading import Thread
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
@@ -119,6 +121,24 @@ def SPEED_split_dataset(config: SPEEDConfig = SPEEDConfig()):
     return None
 
 
+class ImageReader(Thread):
+    def __init__(self, image_name: List, image_size: Tuple[int, int], dataset_folder: Path):
+        Thread.__init__(self)
+        self.image_size = image_size
+        self.dataset_folder = dataset_folder
+        self.image_name =  image_name
+        self.image_dict: dict = {}
+    
+    def run(self):
+        for image_name in tqdm(self.image_name):
+            image = cv.imread(str(self.dataset_folder / "images" / "train" / image_name), cv.IMREAD_GRAYSCALE)
+            if self.image_size is not None:
+                image = cv.resize(image, (self.image_size[1], self.image_size[0]), interpolation=cv.INTER_LINEAR)
+            self.image_dict[image_name] = image
+    
+    def get_result(self) -> dict:
+        return self.image_dict
+
 
 
 class SPEEDDataset(Dataset):
@@ -128,17 +148,21 @@ class SPEEDDataset(Dataset):
     def __init__(self, config: SPEEDConfig = SPEEDConfig(), mode: str = "train"):
         super().__init__()
         SPEED_split_dataset(config)
+        self.mode = mode
         self.dataset_folder = config.dataset_folder
         self.cache = config.cache
+        self.image_size = config.image_size
         self.resize_first = config.resize_first
         self.image_first_size = config.image_first_size
         if config.resize_first:
             self.resize_first_func = A.Compose([A.Resize(*config.image_first_size, interpolation=cv.INTER_LINEAR, p=1.0)],
                                           bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
+        self.resize_func = A.Compose([A.Resize(*config.image_size, interpolation=cv.INTER_LINEAR, p=1.0)],
+                                     bbox_params=A.BboxParams(format="pascal_voc", label_fields=["category_ids"]))
         # transform the image to tensor
         self.image2tensor = v2.Compose([
             v2.ToImage(),
-            v2.Resize(config.image_size, interpolation=InterpolationMode.BILINEAR),
+            v2.Resize(self.image_size, interpolation=InterpolationMode.BILINEAR),
             v2.ToDtype(torch.float32, scale=True)
         ])
         with open(self.dataset_folder / f"{mode}_label.json", "r") as f:
@@ -150,9 +174,15 @@ class SPEEDDataset(Dataset):
             self.label[k]["pos"] = np.array(self.label[k]["pos"], dtype=np.float32)
             self.label[k]["ori"] = np.array(self.label[k]["ori"], dtype=np.float32)
             self.label[k]["bbox"] = np.array(self.label[k]["bbox"], dtype=np.int32)
+            if self.resize_first:
+                self.label[k]["bbox"] = self.label[k]["bbox"] * self.image_first_size[0] / 1200
+                self.label[k]["bbox"] = self.label[k]["bbox"].astype(np.int32)
         # cache the image data
         if self.cache:
-            self._cache_image(self.image_list, self.dataset_folder)
+            self.image_dict = {}
+            # self._cache_image(self.image_list, self.dataset_folder)
+            self._cache_image_multithread(self.image_list)
+            print(f"Load {mode} images ({self.image_dict[self.image_list[0]].shape}) successfully.")
         self.pos_encoder = get_pos_encoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_encoder = get_ori_encoder(config.ori_type, **config.ori_args[config.ori_type])
         self.spher_encoder = get_pos_encoder("Spher", **config.pos_args["Spher"])
@@ -194,6 +224,28 @@ class SPEEDDataset(Dataset):
         label = self.label[image_name]
         return label["pos"], label["ori"], label["bbox"]
 
+
+    def divide_data(self, lst: list, n: int):
+        # 将列表lst分为n份，最后不足一份单独一组
+        k, m = divmod(len(lst), n)
+        return (lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
+
+    def _cache_image_multithread(self, image_list: List[str]):
+        image_divided = self.divide_data(image_list, 10)
+        threads = []
+        if self.resize_first:
+            for sub_image_name in image_divided:
+                threads.append(ImageReader(sub_image_name, self.image_first_size, self.dataset_folder))
+        else:
+            for sub_image_name in image_divided:
+                threads.append(ImageReader(sub_image_name, None, self.dataset_folder))
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        for thread in threads:
+            self.image_dict.update(thread.get_result())
+
     def _cache_image(self, image_list: List[str], dataset_folder: Path) -> Dict[str, np.ndarray]:
         """
         Cache the image data.
@@ -232,6 +284,22 @@ class SPEEDDataset(Dataset):
         image = transformed["image"]
         bboxes = transformed["bboxes"].reshape(4).astype(np.int32)
         return image, bboxes
+    
+    def _resize_image(self, image: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Resize the image and the bounding box.
+
+        Args:
+            image (np.ndarray): The image data.
+            box (np.ndarray): The bounding box.
+        
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: The resized image and bounding box.
+        """
+        transformed = self.resize_func(image=image, bboxes=box.reshape(1, 4), category_ids=[1])
+        image = transformed["image"]
+        bboxes = transformed["bboxes"].reshape(4).astype(np.int32)
+        return image, bboxes
         
 
 
@@ -263,7 +331,10 @@ class SPEEDTrainDataset(SPEEDDataset):
         image, pos, ori, box = self.persepctive_aug(image, pos, ori, box)
         image = self.albumentation_aug(image)
 
-        # resize and transform the image to tensor
+        # resize
+        # image, box = self._resize_image(image, box)
+
+        # transform the image to tensor
         image_tensor = self.image2tensor(image)
         
         label = {
@@ -296,7 +367,10 @@ class SPEEDValDataset(SPEEDDataset):
         image = self._get_image(self.image_list[index])
         pos, ori, box = self._get_label(self.image_list[index])
 
-        # resize and transform the image to tensor
+        # resize
+        # image, box = self._resize_image(image, box)
+
+        # transform the image to tensor
         image_tensor = self.image2tensor(image)
 
         label = {

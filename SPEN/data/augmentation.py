@@ -212,10 +212,10 @@ class AlbumentationAug():
         Args:
             p (float): The probability of applying data augmentation.
         """
-        self.aug = A.Compose([
+        self.aug = A.OneOf([
             A.AdvancedBlur(),
             A.ColorJitter(),
-            # A.GaussNoise()
+            A.GaussNoise()
         ], p=p)
     
     def __call__(self, image: np.ndarray) -> np.ndarray:

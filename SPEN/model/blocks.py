@@ -10,7 +10,7 @@ from timm.models._efficientnet_blocks import UniversalInvertedResidual
 from timm.layers.squeeze_excite import SEModule
 from timm.layers.cbam import SpatialAttn, CbamModule
 
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 
 ConvAct = nn.Mish
@@ -23,7 +23,7 @@ class DensFuse(nn.Module):
         self.conv_downsample = ConvNormAct(align_channels, align_channels, 3, stride=2, act_layer=ConvAct)
     
     def forward(self, shallow_feature: Tensor, current_feature: Tensor, deep_feature: Tensor):
-        feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=True)
+        feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, size=current_feature[-2:], mode='bilinear', align_corners=True)
         return feature_fused
 
 
@@ -66,11 +66,11 @@ class SSIAFuse(nn.Module):
         channel_weight = F.sigmoid(self.channel_weight_conv(channel_feature))  # B, C, 1, 1
 
         # fusion
-        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=True)
+        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, size=current_feature[-2:], mode='bilinear', align_corners=True)
         feature_fused = torch.cat([
             self.conv_downsample(shallow_feature),
             current_feature,
-            F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=True)
+            F.interpolate(deep_feature, size=current_feature[-2:], mode='bilinear', align_corners=True)
         ], dim=1)
         feature_fused = feature_fused * spatial_weight * channel_weight
         return feature_fused
@@ -86,9 +86,9 @@ class Fuse(nn.Module):
         feature_fused = torch.cat([
             self.conv_downsample(shallow_feature),
             current_feature,
-            F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=True)
+            F.interpolate(deep_feature, size=current_feature.shape[-2:], mode='bilinear', align_corners=True)
         ], dim=1)
-        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, scale_factor=2, mode='bilinear', align_corners=True)
+        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, size=current_feature[-2:], mode='bilinear', align_corners=True)
         feature_fused = self.attention(feature_fused)
         return feature_fused
 
@@ -128,3 +128,56 @@ class AttFuse(nn.Module):
     
     def forward(self, shallow_feature: Tensor, current_feature: Tensor, deep_feature: Tensor):
         return self.attention(shallow_feature, current_feature, deep_feature)
+
+
+class AvgPool(nn.Module):
+    def __init__(self, pool_size: int):
+        super().__init__()
+        self.avg_size = pool_size
+    
+    def forward(self, x: Tensor):
+        return F.adaptive_avg_pool2d(x, self.pool_size).flatten(1)      # B, C, H, W -> B, C*H*W
+
+
+class MaxPool(nn.Module):
+    def __init__(self, pool_size: int):
+        super().__init__()
+        self.pool_size = pool_size
+    
+    def forward(self, x: Tensor):
+        return F.adaptive_max_pool2d(x, self.pool_size).flatten(1)      # B, C, H, W -> B, C*H*W
+
+
+class MixPool(nn.Module):
+    def __init__(self, pool_size: int, weighted_learnable: bool = False):
+        super().__init__()
+        self.avg_pool = AvgPool(pool_size)
+        self.max_pool = MaxPool(pool_size)
+        if weighted_learnable:
+            self.weight = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
+        else:
+            self.register_buffer("weight", torch.tensor([1, 1], dtype=torch.float32, requires_grad=False))
+    
+    def forward(self, x: Tensor):
+        super().__init__()
+        avg_feature = self.avg_pool(x)  # B, C, H, W -> B, C*H*W
+        max_feature = self.max_pool(x)  # B, C, H, W -> B, C*H*W
+        weight = F.sigmoid(self.weight) # B, 2
+        feature = avg_feature * weight[0] + max_feature * weight[1] # B, C*H*W
+        return feature  # B, C*H*W
+
+
+class MHA(nn.Module):
+    def __init__(self, in_channels: int, patched_shape: Tuple[int, int], num_heads: int = 8, key_ratio: float = 0.5):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = in_channels // num_heads
+        self.key_dim = int(in_channels * key_ratio)
+        self.patched_shape = patched_shape
+        self.scale = self.head_dim ** -0.5
+        self.key_ratio = key_ratio
+        nhxkd = num_heads * self.key_dim
+        self.qkv = nn.Linear(in_channels, )
+    
+    def forward(self, x: Tensor):
+        pass

@@ -9,6 +9,7 @@ def parse2config(config):
     # train
     parser.add_argument("--train_ratio", type=float, default=config.train_ratio, help="Train ratio")
     parser.add_argument("--val_ratio", type=float, default=config.val_ratio, help="Validation ratio")
+    parser.add_argument("--img_first_size", type=int, nargs="+", default=config.image_first_size, help="Image first size")
     parser.add_argument("--img_size", type=int, nargs="+", default=config.image_size, help="Image size")
     parser.add_argument("--epochs", type=int, default=config.epochs, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=config.batch_size, help="Batch size")
@@ -18,6 +19,7 @@ def parse2config(config):
     parser.add_argument("--cache", action="store_true", help="Cache dataset")
     parser.add_argument("--lr0", type=float, default=config.lr0, help="Initial learning rate")
     parser.add_argument("--compile", action="store_true", help="Compile")
+    parser.add_argument("--gradient_clip_val", type=float, default=config.gradient_clip_val, help="Gradient clip value")
     # backbone
     parser.add_argument("--backbone", type=str, default=config.backbone, help="Backbone",
                         choices=list(config.backbone_args.keys()))
@@ -52,11 +54,15 @@ def parse2config(config):
     # loss beta
     parser.add_argument("--BETA", nargs="+", default=config.BETA, help="loss beta")
 
+    # data augmentation
+    parser.add_argument("--Zr_angle", type=int, default=config.ZAxisRotation_args["max_angle"], help="Z axis rotation angle")
+
     args = parser.parse_args()
 
     config.exp_type = args.exp_type
     config.train_ratio = args.train_ratio
     config.val_ratio = args.val_ratio
+    config.image_first_size = tuple(map(int, args.img_first_size))
     config.image_size = tuple(map(int, args.img_size))
     config.epochs = args.epochs
     config.batch_size = args.batch_size
@@ -66,6 +72,7 @@ def parse2config(config):
     config.cache = args.cache
     config.lr0 = args.lr0
     config.compile = args.compile
+    config.gradient_clip_val = args.gradient_clip_val
     config.backbone = args.backbone
     config.neck = args.neck
     config.neck_args["PAFPN"]["align_channels"] = args.align_channels
@@ -86,6 +93,7 @@ def parse2config(config):
     config.ori_loss_type = args.ori_loss_type
     config.ALPHA = tuple(map(float, args.ALPHA))
     config.BETA = tuple(map(float, args.BETA))
+    config.ZAxisRotation_args["max_angle"] = args.Zr_angle
     config.name = f"{config.exp_type}_{config.backbone}_{config.neck}_{config.pos_type}_{config.pos_loss_type}_{config.ori_type}_{config.ori_loss_type}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
 
     return config

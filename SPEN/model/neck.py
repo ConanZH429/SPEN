@@ -72,8 +72,8 @@ class PAFPN(nn.Module):
 
         # FPN
         p5_1 = self.conv5_up(p5_0)
-        p4_1 = self.conv4_up(p4_0 + F.interpolate(p5_1, scale_factor=2, mode="nearest"))
-        p3_1 = self.conv3_up(p3_0 + F.interpolate(p4_1, scale_factor=2, mode="nearest"))
+        p4_1 = self.conv4_up(p4_0 + F.interpolate(p5_1, size=p4_0.shape[-2:], mode="nearest"))
+        p3_1 = self.conv3_up(p3_0 + F.interpolate(p4_1, size=p3_0.shape[-2:], mode="nearest"))
 
         # PAN
         p3_2 = self.conv3_down(p3_1)
@@ -143,14 +143,14 @@ class BiFPN(nn.Module):
         p4_w1 = F.relu(self.p4_w1)
         weight = p4_w1 / (torch.sum(p4_w1) + self.eps)
         p4_1 = self.conv4_up(
-            weight[0] * p4_0 + weight[1] * F.interpolate(p5_0, scale_factor=2, mode="nearest")
+            weight[0] * p4_0 + weight[1] * F.interpolate(p5_0, size=p4_0.shape[-2:], mode="nearest")
         )
 
         # weights for P4_1 and P3_0 to P3_2
         p3_w2 = F.relu(self.p3_w2)
         weight = p3_w2 / (torch.sum(p3_w2) + self.eps)
         p3_2 = self.conv3_up(
-            weight[0] * p3_0 + weight[1] * F.interpolate(p4_1, scale_factor=2, mode="nearest")
+            weight[0] * p3_0 + weight[1] * F.interpolate(p4_1, size=p3_0.shape[-2:], mode="nearest")
         )
         
         # weights for P4_0, P4_1 and P3_0 to P4_2

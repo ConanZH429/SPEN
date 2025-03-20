@@ -20,26 +20,29 @@ class SPEEDConfig(Config):
         self.val_ratio = 0.10
         self.cache = True
         self.resize_first = True
-        self.image_first_size = (1000, 1600)
-        self.image_size = (480, 768)
-        # self.image_size = (416, 640)
+        # self.image_first_size = (1000, 1600)
+        self.image_first_size = (800, 1280)
+        # self.image_size = (480, 768)
+        self.image_size = (400, 640)
+        self.pad = 0
 
         # train
         self.device = "cuda"
         self.epochs = 300
         self.lr0 = 0.001
         self.lr_min = 0.000001
-        self.warmup_epochs = 3
+        self.warmup_epochs = 5
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
         self.batch_size = 40
         self.num_workers = 20
         self.compile = False
+        self.gradient_clip_val = None
 
         # model
         # backbone
-        self.backbone = "resnet18"
+        self.backbone = "mobilenetv3_large_100"
         self.backbone_args = {
             "resnet18": {
                 "bin_folder" : "resnet18.a1_in1k",
@@ -139,9 +142,9 @@ class SPEEDConfig(Config):
 
         self.Perspective_p = 0.0
         self.Perspective_args = {
-            "rotation_p": 0.0,
-            "max_angle": 90,
-            "translation_p": 1.0,
+            "rotation_p": 0.1,
+            "max_angle": 10,
+            "translation_p": 0.1,
             "max_x": 0.2,
             "max_y": 0.2,
             "scale_p": 1.0,
