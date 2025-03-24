@@ -35,7 +35,7 @@ class SPEEDConfig(Config):
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
-        self.batch_size = 40
+        self.batch_size = 50
         self.num_workers = 20
         self.compile = False
         self.gradient_clip_val = None

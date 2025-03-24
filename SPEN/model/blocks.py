@@ -66,11 +66,11 @@ class SSIAFuse(nn.Module):
         channel_weight = F.sigmoid(self.channel_weight_conv(channel_feature))  # B, C, 1, 1
 
         # fusion
-        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, size=current_feature[-2:], mode='bilinear', align_corners=True)
+        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, size=current_feature.shape[-2:], mode='bilinear', align_corners=True)
         feature_fused = torch.cat([
             self.conv_downsample(shallow_feature),
             current_feature,
-            F.interpolate(deep_feature, size=current_feature[-2:], mode='bilinear', align_corners=True)
+            F.interpolate(deep_feature, size=current_feature.shape[-2:], mode='bilinear', align_corners=True)
         ], dim=1)
         feature_fused = feature_fused * spatial_weight * channel_weight
         return feature_fused
@@ -88,7 +88,7 @@ class Fuse(nn.Module):
             current_feature,
             F.interpolate(deep_feature, size=current_feature.shape[-2:], mode='bilinear', align_corners=True)
         ], dim=1)
-        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, size=current_feature[-2:], mode='bilinear', align_corners=True)
+        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, size=current_feature.shape[-2:], mode='bilinear', align_corners=True)
         feature_fused = self.attention(feature_fused)
         return feature_fused
 

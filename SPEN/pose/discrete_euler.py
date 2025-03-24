@@ -1,5 +1,6 @@
 import torch
 from torch import Tensor
+import torch.nn.functional as F
 
 import numpy as np
 
@@ -143,9 +144,9 @@ class DiscreteEulerDecoder(DiscreteEuler):
             ori (Tensor): the Euler angle in quaternion format
         """
         
-        yaw_encode = torch.exp(ori_pre_dict["yaw_encode"])
-        pitch_encode = torch.exp(ori_pre_dict["pitch_encode"])
-        roll_encode = torch.exp(ori_pre_dict["roll_encode"])
+        yaw_encode = F.softmax(ori_pre_dict["yaw_encode"], dim=-1)
+        pitch_encode = F.softmax(ori_pre_dict["pitch_encode"], dim=-1)
+        roll_encode = F.softmax(ori_pre_dict["roll_encode"], dim=-1)
 
         # yaw_encode = torch.where(yaw_encode < 1e-6, torch.tensor(0, device=self.device), yaw_encode)
         # pitch_encode = torch.where(pitch_encode < 1e-6, torch.tensor(0, device=self.device), pitch_encode)
@@ -194,13 +195,9 @@ class DiscreteEuler2Euler(DiscreteEuler):
         Returns:
             Tensor: the Euler angle in quaternion format
         """
-        yaw_encode = torch.exp(ori_pre_dict["yaw_encode"])
-        pitch_encode = torch.exp(ori_pre_dict["pitch_encode"])
-        roll_encode = torch.exp(ori_pre_dict["roll_encode"])
-
-        # yaw_encode = torch.where(yaw_encode < 1e-6, torch.tensor(0, device=self.device), yaw_encode)
-        # pitch_encode = torch.where(pitch_encode < 1e-6, torch.tensor(0, device=self.device), pitch_encode)
-        # roll_encode = torch.where(roll_encode < 1e-6, torch.tensor(0, device=self.device), roll_encode)
+        yaw_encode = F.softmax(ori_pre_dict["yaw_encode"], dim=-1)
+        pitch_encode = F.softmax(ori_pre_dict["pitch_encode"], dim=-1)
+        roll_encode = F.softmax(ori_pre_dict["roll_encode"], dim=-1)
 
         yaw_decode = torch.sum(yaw_encode * self.yaw_range, dim=1)
         pitch_decode = torch.sum(pitch_encode * self.pitch_range, dim=1)

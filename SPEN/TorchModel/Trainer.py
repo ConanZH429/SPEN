@@ -37,7 +37,8 @@ class Trainer:
             gradient_accumulation_steps (int, optional): The number of gradient accumulation steps. Defaults to 1.
             gradient_clip_val (Optional[float], optional): The gradient clip value. Defaults to None.
         """
-        self.model = model.to(device)
+        self.model = model
+        self.model.to(device)
         self.config = config
         self.device = device
         optimizer = config.optimizer

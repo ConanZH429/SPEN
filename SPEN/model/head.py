@@ -40,12 +40,12 @@ class DiscreteSpherHead(nn.Module):
         r_encode = self.r_fc(pos_feature)
         theta_encode = self.theta_fc(pos_feature)
         phi_encode = self.phi_fc(pos_feature)
-        r_encode = r_encode.type(torch.float32)
-        theta_encode = theta_encode.type(torch.float32)
-        phi_encode = phi_encode.type(torch.float32)
-        r_encode = F.log_softmax(r_encode, dim=-1)
-        theta_encode = F.log_softmax(theta_encode, dim=-1)
-        phi_encode = F.log_softmax(phi_encode, dim=-1)
+        # r_encode = r_encode.type(torch.float32)
+        # theta_encode = theta_encode.type(torch.float32)
+        # phi_encode = phi_encode.type(torch.float32)
+        # r_encode = F.log_softmax(r_encode, dim=-1)
+        # theta_encode = F.log_softmax(theta_encode, dim=-1)
+        # phi_encode = F.log_softmax(phi_encode, dim=-1)
         return {
             "r_encode": r_encode,
             "theta_encode": theta_encode,
@@ -92,12 +92,12 @@ class DiscreteEulerHead(nn.Module):
         yaw_encode = self.yaw_fc(ori_feature)
         pitch_encode = self.pitch_fc(ori_feature)
         roll_encode = self.roll_fc(ori_feature)
-        yaw_encode = yaw_encode.type(torch.float32)
-        pitch_encode = pitch_encode.type(torch.float32)
-        roll_encode = roll_encode.type(torch.float32)
-        yaw_encode = F.log_softmax(yaw_encode, dim=-1)
-        pitch_encode = F.log_softmax(pitch_encode, dim=-1)
-        roll_encode = F.log_softmax(roll_encode, dim=-1)
+        # yaw_encode = yaw_encode.type(torch.float32)
+        # pitch_encode = pitch_encode.type(torch.float32)
+        # roll_encode = roll_encode.type(torch.float32)
+        # yaw_encode = F.log_softmax(yaw_encode, dim=-1)
+        # pitch_encode = F.log_softmax(pitch_encode, dim=-1)
+        # roll_encode = F.log_softmax(roll_encode, dim=-1)
         return {
             "yaw_encode": yaw_encode,
             "pitch_encode": pitch_encode,

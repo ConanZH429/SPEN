@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 import numpy as np
 import math
+import torch.nn.functional as F
 
 class DiscreteSpher():
     """
@@ -119,13 +120,9 @@ class DiscreteSpherDecoder(DiscreteSpher):
         Returns:
             np.ndarray: the decoded position in the format of (x, y, z)
         """
-        r_encode = torch.exp(pos_pre_dict["r_encode"])
-        theta_encode = torch.exp(pos_pre_dict["theta_encode"])
-        phi_encode = torch.exp(pos_pre_dict["phi_encode"])
-
-        # r_encode = torch.where(r_encode < 1e-6, torch.tensor(0, device=self.device), r_encode)
-        # theta_encode = torch.where(theta_encode < 1e-6, torch.tensor(0, device=self.device), theta_encode)
-        # phi_encode = torch.where(phi_encode < 1e-6, torch.tensor(0, device=self.device), phi_encode)
+        r_encode = F.softmax(pos_pre_dict["r_encode"], dim=-1)
+        theta_encode = F.softmax(pos_pre_dict["theta_encode"], dim=-1)
+        phi_encode = F.softmax(pos_pre_dict["phi_encode"], dim=-1)
         
         r_decode = torch.sum(r_encode * self.r_range, dim=1)
         theta_decode = torch.sum(theta_encode * self.theta_range, dim=1)
@@ -164,13 +161,9 @@ class DiscreteSpher2Spher(DiscreteSpher):
         Returns:
             Tensor: the discrete spherical coordinate
         """
-        r_encode = torch.exp(pos_pre_dict["r_encode"])
-        theta_encode = torch.exp(pos_pre_dict["theta_encode"])
-        phi_encode = torch.exp(pos_pre_dict["phi_encode"])
-
-        # r_encode = torch.where(r_encode < 1e-6, torch.tensor(0, device=self.device), r_encode)
-        # theta_encode = torch.where(theta_encode < 1e-6, torch.tensor(0, device=self.device), theta_encode)
-        # phi_encode = torch.where(phi_encode < 1e-6, torch.tensor(0, device=self.device), phi_encode)
+        r_encode = F.softmax(pos_pre_dict["r_encode"], dim=-1)
+        theta_encode = F.softmax(pos_pre_dict["theta_encode"], dim=-1)
+        phi_encode = F.softmax(pos_pre_dict["phi_encode"], dim=-1)
         
         r_decode = torch.sum(r_encode * self.r_range, dim=1)
         theta_decode = torch.deg2rad(torch.sum(theta_encode * self.theta_range, dim=1))

@@ -22,8 +22,6 @@ class ImageModule(Model):
         super().__init__()
         self.config = config
         self.model = SPEN(self.config)
-        if self.config.compile:
-            self.model = torch.compile(self.model)
         self.pos_decoder = get_pos_decoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_decoder = get_ori_decoder(config.ori_type, **config.ori_args[config.ori_type])
         if self.config.pos_type == "DiscreteSpher":
@@ -96,9 +94,11 @@ class ImageModule(Model):
         self.trainer.logger.log_code(dataset_folder / "val.txt")
         self.trainer.logger.log_code(dataset_folder / "train_label.json")
         self.trainer.logger.log_code(dataset_folder / "val_label.json")
+        # compile
+        if self.config.compile:
+            self.model = torch.compile(self.model, mode="reduce-overhead", fullgraph=True)
 
-    
-    
+
     def forward(self, x):
         return self.model(x)
 
@@ -130,8 +130,10 @@ class ImageModule(Model):
         if self.config.ori_type == "DiscreteEuler":
             loss_dict["euler"] = euler_loss_dict
         self._update_train_metrics(num_samples, loss_dict, train_loss)
-        self._train_log(log_online=False)
-
+        if index % 10 == 0:
+            self._train_log(log_online=True)
+        else:
+            self._train_log(log_online=False)
         return train_loss
     
     
@@ -156,7 +158,7 @@ class ImageModule(Model):
         self._update_val_metrics(num_samples, pos_loss_dict, ori_loss_dict, val_loss,
                                  pos_decode, labels["pos"],
                                  ori_decode, labels["ori"])
-        self._val_log(log_online=False)
+        self._val_log(log_online=True)
     
 
     def on_val_epoch_end(self):
