@@ -1,5 +1,5 @@
 from .blocks import *
-from typing import List
+from typing import List, Dict, Any
 
 # head
 class CartHead(nn.Module):
@@ -27,11 +27,11 @@ class SpherHead(nn.Module):
 
 
 class DiscreteSpherHead(nn.Module):
-    def __init__(self, in_channels: int, angle_stride: int, r_stride: int, r_max: int, neighbor: int, **kwargs):
+    def __init__(self, in_channels: int, angle_stride: float, r_stride: float, r_max: int, **kwargs):
         super().__init__()
-        r_dim = r_max // r_stride + 1 + 2 * neighbor
-        theta_dim = 90 // angle_stride + 1 + 2 * neighbor
-        phi_dim = 360 // angle_stride + 1 + 2 * neighbor
+        r_dim = int(r_max // r_stride + 1)
+        theta_dim = int(90 // angle_stride + 1)
+        phi_dim = int(360 // angle_stride + 1)
         self.r_fc = nn.Linear(in_channels, r_dim)
         self.theta_fc = nn.Linear(in_channels, theta_dim)
         self.phi_fc = nn.Linear(in_channels, phi_dim)
@@ -40,12 +40,6 @@ class DiscreteSpherHead(nn.Module):
         r_encode = self.r_fc(pos_feature)
         theta_encode = self.theta_fc(pos_feature)
         phi_encode = self.phi_fc(pos_feature)
-        # r_encode = r_encode.type(torch.float32)
-        # theta_encode = theta_encode.type(torch.float32)
-        # phi_encode = phi_encode.type(torch.float32)
-        # r_encode = F.log_softmax(r_encode, dim=-1)
-        # theta_encode = F.log_softmax(theta_encode, dim=-1)
-        # phi_encode = F.log_softmax(phi_encode, dim=-1)
         return {
             "r_encode": r_encode,
             "theta_encode": theta_encode,
@@ -79,11 +73,11 @@ class EulerHead(nn.Module):
 
 
 class DiscreteEulerHead(nn.Module):
-    def __init__(self, in_channels: int, stride: int, neighbor: int, **kwargs):
+    def __init__(self, in_channels: int, stride: float, **kwargs):
         super().__init__()
-        yaw_dim = 360 // stride + 1 + 2 * neighbor
-        pitch_dim = 180 // stride + 1 + 2 * neighbor
-        roll_dim = 360 // stride + 1 + 2 * neighbor
+        yaw_dim = int(360 // stride + 1)
+        pitch_dim = int(180 // stride + 1)
+        roll_dim = int(360 // stride + 1)
         self.yaw_fc = nn.Linear(in_channels, yaw_dim)
         self.pitch_fc = nn.Linear(in_channels, pitch_dim)
         self.roll_fc = nn.Linear(in_channels, roll_dim)
@@ -92,12 +86,6 @@ class DiscreteEulerHead(nn.Module):
         yaw_encode = self.yaw_fc(ori_feature)
         pitch_encode = self.pitch_fc(ori_feature)
         roll_encode = self.roll_fc(ori_feature)
-        # yaw_encode = yaw_encode.type(torch.float32)
-        # pitch_encode = pitch_encode.type(torch.float32)
-        # roll_encode = roll_encode.type(torch.float32)
-        # yaw_encode = F.log_softmax(yaw_encode, dim=-1)
-        # pitch_encode = F.log_softmax(pitch_encode, dim=-1)
-        # roll_encode = F.log_softmax(roll_encode, dim=-1)
         return {
             "yaw_encode": yaw_encode,
             "pitch_encode": pitch_encode,
@@ -115,44 +103,33 @@ class Head(nn.Module):
         "Euler": EulerHead,
         "DiscreteEuler": DiscreteEulerHead
     }
-    def __init__(self, in_channels: List[int], config):
+    def __init__(self, pos_type: str, pos_args: Dict[str, Any], ori_type: str, ori_args: Dict[str, Any]):
         super().__init__()
-        assert len(in_channels) == len(config.avg_size), f"in_channels length {len(in_channels)} != avg_size length {len(config.avg_size)}"
-        feature_dim = sum(channels*avg_size**2 for channels, avg_size in zip(in_channels, config.avg_size))
-        self.fuse_fc = nn.Sequential(
-            nn.Linear(feature_dim, feature_dim),
+        self.pos_fuse_fc = nn.Sequential(
+            nn.Linear(self.feature_dim, self.feature_dim),
             MLPAct(inplace=True),
         )
-        self.weighted = config.weighted
-        if config.weighted:
-            self.weight_fc = nn.Sequential(
-                nn.Linear(feature_dim, feature_dim//6),
-                MLPAct(inplace=True),
-                nn.Linear(feature_dim//6, feature_dim),
-                nn.Sigmoid()
-            )
-        self.pos_dim = feature_dim
-        self.ori_dim = feature_dim
-        self.avg_size = config.avg_size
-        PosHead = Head.pos_head_dict[config.pos_type]
-        self.pos_head = PosHead(self.pos_dim, **config.pos_args[config.pos_type])
-        OriHead = Head.ori_head_dict[config.ori_type]
-        self.ori_head = OriHead(self.ori_dim, **config.ori_args[config.ori_type])
+        self.ori_fuse_fc = nn.Sequential(
+            nn.Linear(self.feature_dim, self.feature_dim),
+            MLPAct(inplace=True),
+        )
+        PosHead = Head.pos_head_dict[pos_type]
+        self.pos_head = PosHead(self.feature_dim, **pos_args[pos_type])
+        OriHead = Head.ori_head_dict[ori_type]
+        self.ori_head = OriHead(self.feature_dim, **ori_args[ori_type])
         self.weight_init()
-
     
     def forward(self, features: List[Tensor]):
-        assert len(features) == len(self.avg_size), f"features length {len(features)} != avg_size length {len(self.avg_size)}"
-        feature_pooled = [F.adaptive_avg_pool2d(x, avg_size).flatten(1) for x, avg_size in zip(features, self.avg_size)]
-        feature_pooled = torch.cat(feature_pooled, dim=1)
-        feature_fused = self.fuse_fc(feature_pooled)
-        if self.weighted:
-            weight = self.weight_fc(feature_pooled)
-            feature_fused = feature_fused * weight
-        pos_pre_dict = self.pos_head(feature_fused)
-        ori_pre_dict = self.ori_head(feature_fused)
+        assert len(self.fm2vect) == len(features), f"fm2vect length {len(self.fm2vect)} != features length {len(features)}"
+        features_vect = [fm2vect(fm) for fm2vect, fm in zip(self.fm2vect, features)]
+        pos_feature = torch.cat([vect[0].flatten(1) for vect in features_vect], dim=1)
+        ori_feature = torch.cat([vect[1].flatten(1) for vect in features_vect], dim=1)
+        pos_feature = self.pos_fuse_fc(pos_feature)
+        ori_feature = self.ori_fuse_fc(ori_feature)
+        pos_pre_dict = self.pos_head(pos_feature)
+        ori_pre_dict = self.ori_head(ori_feature)
         return pos_pre_dict, ori_pre_dict
-
+    
     def weight_init(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -166,3 +143,119 @@ class Head(nn.Module):
                 nn.init.kaiming_normal_(m.weight, mode='fan_in')
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
+
+
+class AvgPoolHead(Head):
+    def __init__(self,
+                 in_channels: List[int],
+                 head_args: Dict[str, Any],
+                 pos_type: str,
+                 pos_args: Dict[str, Any],
+                 ori_type: str,
+                 ori_args: Dict[str, Any]):
+        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
+        pool_size = head_args["pool_size"]
+        if isinstance(pool_size[0], int):
+            self.feature_dim = sum(channels * ps**2 for channels, ps in zip(in_channels, pool_size))
+        elif isinstance(pool_size[0], tuple):
+            self.feature_dim = sum(channels * ps[0]*ps[1] for channels, ps in zip(in_channels, pool_size))
+        super().__init__(pos_type, pos_args, ori_type, ori_args)
+        self.fm2vect = nn.ModuleList([AvgPool(ps) for ps in pool_size])
+
+
+class MaxPoolHead(Head):
+    def __init__(self,
+                 in_channels: List[int],
+                 head_args: Dict[str, Any],
+                 pos_type: str,
+                 pos_args: Dict[str, Any],
+                 ori_type: str,
+                 ori_args: Dict[str, Any]):
+        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
+        pool_size = head_args["pool_size"]
+        if isinstance(pool_size[0], int):
+            self.feature_dim = sum(channels * ps**2 for channels, ps in zip(in_channels, pool_size))
+        elif isinstance(pool_size[0], tuple):
+            self.feature_dim = sum(channels * ps[0] * ps[1] for channels, ps in zip(in_channels, pool_size))
+        super().__init__(pos_type, pos_args, ori_type, ori_args)
+        self.fm2vect = nn.ModuleList([MaxPool(ps) for ps in pool_size])
+
+
+class MixPoolHead(Head):
+    def __init__(self,
+                 in_channels: List[int],
+                 head_args: Dict[str, Any],
+                 pos_type: str,
+                 pos_args: Dict[str, Any],
+                 ori_type: str,
+                 ori_args: Dict[str, Any]):
+        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
+        pool_size = head_args["pool_size"]
+        if isinstance(pool_size[0], int):
+            self.feature_dim = sum(channels * ps**2 for channels, ps in zip(in_channels, pool_size))
+        elif isinstance(pool_size[0], tuple):
+            self.feature_dim = sum(channels * ps[0] * ps[1] for channels, ps in zip(in_channels, pool_size))
+        super().__init__(pos_type, pos_args, ori_type, ori_args)
+        self.fm2vect = nn.ModuleList([MixPool(ps, head_args["weighted_learnable"]) for ps in pool_size])
+
+
+class SPPHead(Head):
+    def __init__(self,
+                 in_channels: List[int],
+                 head_args: Dict[str, Any],
+                 pos_type: str,
+                 pos_args: Dict[str, Any],
+                 ori_type: str,
+                 ori_args: Dict[str, Any]):
+        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
+        pool_size = head_args["pool_size"]
+        if isinstance(pool_size[0][0], int):
+            pool_s = [sum([ps**2 for ps in pool]) for pool in pool_size]
+            self.feature_dim = sum(channels * ps for channels, ps in zip(in_channels, pool_s))
+        elif isinstance(pool_size[0][0], tuple):
+            pool_s = [sum([ps[0]*ps[1] for ps in pool]) for pool in pool_size]
+            self.feature_dim = sum(channels * ps for channels, ps in zip(in_channels, pool_s))
+        super().__init__(pos_type, pos_args, ori_type, ori_args)
+        self.fm2vect = nn.ModuleList([SPP(ps, head_args["mode"]) for ps in pool_size])
+
+
+class MHAHead(Head):
+    def __init__(self,
+                 in_channels: List[int],
+                 head_args: Dict[str, Any],
+                 pos_type: str,
+                 pos_args: Dict[str, Any],
+                 ori_type: str,
+                 ori_args: Dict[str, Any]):
+        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
+        patch_size = head_args["patch_size"]
+        pool_size = head_args["pool_size"]
+        if "spp" in head_args["pool_mode"]:
+            if isinstance(pool_size[0][0], int):
+                pool_s = [sum([ps**2 for ps in pool]) for pool in pool_size]
+                self.feature_dim = sum(channels * ps for channels, ps in zip(in_channels, pool_s))
+            elif isinstance(pool_size[0][0], tuple):
+                pool_s = [sum([ps[0]*ps[1] for ps in pool]) for pool in pool_size]
+                self.feature_dim = sum(channels * ps for channels, ps in zip(in_channels, pool_s))
+        else:
+            if isinstance(pool_size[0], int):
+                self.feature_dim = sum(channels * ps**2 for channels, ps in zip(in_channels, pool_size))
+            elif isinstance(pool_size[0], tuple):
+                self.feature_dim = sum(channels * ps[0]*ps[1] for channels, ps in zip(in_channels, pool_size))
+        super().__init__(pos_type, pos_args, ori_type, ori_args)
+        self.fm2vect = nn.ModuleList([MHAPool(ic, pas, head_args["embedding_mode"], pos, head_args["pool_mode"], head_args["num_heads"]) for ic, pas, pos in zip(in_channels, patch_size, pool_size)])
+
+
+class TokenHead(Head):
+    def __init__(self,
+                 in_channels: List[int],
+                 head_args: Dict[str, Any],
+                 pos_type: str,
+                 pos_args: Dict[str, Any],
+                 ori_type: str,
+                 ori_args: Dict[str, Any]):
+        assert len(in_channels) == len(head_args["patch_size"]), f"in_channels length {len(in_channels)} != patch_size length {len(head_args['patch_size'])}"
+        patch_size = head_args["patch_size"]
+        self.feature_dim = sum(in_channels)
+        super().__init__(pos_type, pos_args, ori_type, ori_args)
+        self.fm2vect = nn.ModuleList([TokenFeature(ic, ps, head_args["embedding_mode"], head_args["num_heads"], head_args["num_layers"]) for ic, ps in zip(in_channels, patch_size)])

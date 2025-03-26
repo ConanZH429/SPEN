@@ -1,38 +1,54 @@
 import rich
 import rich.table
 import torch
+import math
 from torch import Tensor
 from pathlib import Path
 
 from ..TorchModel import Model
 
 from ..model import SPEN
-from ..cfg import SPEEDConfig
+from ..cfg import SPEEDConfig, SPARKConfig
 from ..utils import PosLossFunc, OriLossFunc
 from ..utils import PosLoss, OriLoss, Loss, PosError, OriError, Score
 from ..pose import get_ori_decoder, get_pos_decoder
 from ..pose import DiscreteEuler2Euler, DiscreteSpher2Spher
 
-from typing import Dict
+from typing import Dict, Union
 
 
 
 class ImageModule(Model):
-    def __init__(self, config:SPEEDConfig = SPEEDConfig()):
+    def __init__(self, config: Union[SPEEDConfig, SPARKConfig]):
         super().__init__()
         self.config = config
+        self.BETA = self.config.BETA         # loss function weight
         self.model = SPEN(self.config)
         self.pos_decoder = get_pos_decoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_decoder = get_ori_decoder(config.ori_type, **config.ori_args[config.ori_type])
         if self.config.pos_type == "DiscreteSpher":
             self.discrete_spher2spher = DiscreteSpher2Spher(**config.pos_args[config.pos_type])
+            self.beta_0_list = [self.BETA_func(self.BETA[0], i, 200, 0.0) for i in range(self.config.epochs)]
         if self.config.ori_type == "DiscreteEuler":
             self.discrete_euler2euler = DiscreteEuler2Euler(**config.ori_args[config.ori_type])
+            self.beta_1_list = [self.BETA_func(self.BETA[1], i, 200, 0.0) for i in range(self.config.epochs)]
 
         self._loss_init(config)
 
         self._metrics_init(config)
     
+
+    def BETA_func(self, BETA, cur_iter, max_iter, min_ratio):
+        if not self.config.beta_cos:
+            return BETA
+        if self.config.pos_type != "DiscreteSpher" or self.config.ori_type != "DiscreteEuler":
+            return BETA
+        if cur_iter < max_iter:
+            ratio = min_ratio + (1-min_ratio)*(1 + math.cos(math.pi * cur_iter / (max_iter  - 1))) / 2
+        else:
+            ratio = 0
+        return ratio * BETA
+
 
     def on_fit_start(self):
         table = rich.table.Table(title="hyperparameters", show_lines=True)
@@ -49,7 +65,7 @@ class ImageModule(Model):
         table.add_row("lr_min", str(self.config.lr_min), "-")
         table.add_row("Backbone", self.config.backbone, dict2str(self.config.backbone_args[self.config.backbone]))
         table.add_row("Neck", self.config.neck, dict2str(self.config.neck_args[self.config.neck]))
-        table.add_row("Head", "Head", dict2str({"weighted": self.config.weighted, "avg_size": self.config.avg_size}))
+        table.add_row("Head", self.config.head, dict2str(self.config.head_args[self.config.head]))
         table.add_row("pos_type", self.config.pos_type, dict2str(self.config.pos_args[self.config.pos_type]))
         table.add_row("pos_loss_type", self.config.pos_loss_type, dict2str(self.config.pos_loss_args[self.config.pos_loss_type]))
         table.add_row("ori_type", self.config.ori_type, dict2str(self.config.ori_args[self.config.ori_type]))
@@ -67,18 +83,14 @@ class ImageModule(Model):
         tags = [self.config.exp_type, self.config.backbone, self.config.neck]
         if self.config.neck == "DensAttFPN":
             tags += ["att_type:" + str(self.config.neck_args["DensAttFPN"]["att_type"])]
-        tags += ["avg_size:" + str(self.config.avg_size)]
+        tags += [self.config.head]
         tags += ["pos_type:" + self.config.pos_type, "pos_loss_type:" + self.config.pos_loss_type]
         if self.config.pos_type == "DiscreteSpher":
             tags += [f"angle_stride:{self.config.pos_args['DiscreteSpher']['angle_stride']}",
-                     f"r_stride:{self.config.pos_args['DiscreteSpher']['r_stride']}",
-                     f"dis_spher_alpha:{self.config.pos_args['DiscreteSpher']['alpha']}",
-                     f"dis_spher_neighbor:{self.config.pos_args['DiscreteSpher']['neighbor']}"]
+                     f"r_stride:{self.config.pos_args['DiscreteSpher']['r_stride']}"]
         tags += ["ori_type:" + self.config.ori_type, "ori_loss_type:" + self.config.ori_loss_type]
         if self.config.ori_type == "DiscreteEuler":
-            tags += [f"stride:{self.config.ori_args['DiscreteEuler']['stride']}",
-                     f"dis_euler_alpha:{self.config.ori_args['DiscreteEuler']['alpha']}",
-                     f"dis_euler_neighbor:{self.config.ori_args['DiscreteEuler']['neighbor']}"]
+            tags += [f"stride:{self.config.ori_args['DiscreteEuler']['stride']}"]
         self.trainer.logger.log_tags(tags)
         # hyperparams
         self.trainer.logger.log_hyperparams(self.config)
@@ -112,7 +124,9 @@ class ImageModule(Model):
         ori_loss_dict = self.ori_loss(ori_pre_dict, labels["ori_encode"])
         pos_loss = torch.sum(torch.stack([val for val in pos_loss_dict.values()]))
         ori_loss = torch.sum(torch.stack([val for val in ori_loss_dict.values()]))
-        train_loss = self.BETA[0] * pos_loss + self.BETA[1] * ori_loss
+        beta_0 = self.beta_0_list[self.trainer.now_epoch-1]
+        beta_1 = self.beta_1_list[self.trainer.now_epoch-1]
+        train_loss = beta_0 * pos_loss + beta_1 * ori_loss
         if self.config.pos_type == "DiscreteSpher":
             spher_decode = self.discrete_spher2spher(pos_pre_dict)
             spher_loss_dict = self.spher_loss(spher_decode, labels["spher"])
@@ -129,11 +143,8 @@ class ImageModule(Model):
             loss_dict["spher"] = spher_loss_dict
         if self.config.ori_type == "DiscreteEuler":
             loss_dict["euler"] = euler_loss_dict
-        self._update_train_metrics(num_samples, loss_dict, train_loss)
-        if index % 10 == 0:
-            self._train_log(log_online=True)
-        else:
-            self._train_log(log_online=False)
+        self._update_train_metrics(num_samples, loss_dict, train_loss, beta_0, beta_1)
+        self._train_log(log_online=False)
         return train_loss
     
     
@@ -146,16 +157,10 @@ class ImageModule(Model):
         images, _, labels = batch
         num_samples = images.size(0)
         pos_pre_dict, ori_pre_dict = self.forward(images)
-        # loss
-        pos_loss_dict = self.pos_loss(pos_pre_dict, labels["pos_encode"])
-        ori_loss_dict = self.ori_loss(ori_pre_dict, labels["ori_encode"])
-        pos_loss = torch.sum(torch.stack([val for val in pos_loss_dict.values()]))
-        ori_loss = torch.sum(torch.stack([val for val in ori_loss_dict.values()]))
-        val_loss = self.BETA[0] * pos_loss + self.BETA[1] * ori_loss
+        # metrics
         pos_decode = self.pos_decoder.decode_batch(pos_pre_dict)
         ori_decode = self.ori_decoder.decode_batch(ori_pre_dict)
-        # metrics
-        self._update_val_metrics(num_samples, pos_loss_dict, ori_loss_dict, val_loss,
+        self._update_val_metrics(num_samples,
                                  pos_decode, labels["pos"],
                                  ori_decode, labels["ori"])
         self._val_log(log_online=True)
@@ -167,7 +172,6 @@ class ImageModule(Model):
 
 
     def _loss_init(self, config):
-        self.BETA = self.config.BETA         # loss function weight
         self.pos_loss = PosLossFunc(config.pos_type, config.pos_loss_type, **config.pos_loss_args[config.pos_loss_type])
         self.ori_loss = OriLossFunc(config.ori_type, config.ori_loss_type, **config.ori_loss_args[config.ori_loss_type])
         self.pos_loss = torch.compile(self.pos_loss)
@@ -188,17 +192,15 @@ class ImageModule(Model):
         if config.ori_type == "DiscreteEuler":
             self.train_euler_loss = OriLoss("Euler")
         self.train_loss = Loss()
-
-        self.val_pos_loss = PosLoss(config.pos_type)
-        self.val_ori_loss = OriLoss(config.ori_type)
-        self.val_loss = Loss()
+        self.beta_0 = None
+        self.beat_1 = None
 
         self.pos_error = PosError()
         self.ori_error = OriError()
         self.score = Score(config.ALPHA)
 
 
-    def _update_train_metrics(self, num_samples: int, loss_dict: Dict[str, Dict[str, Tensor]], loss: Tensor):
+    def _update_train_metrics(self, num_samples: int, loss_dict: Dict[str, Dict[str, Tensor]], loss: Tensor, beta_0: float, beta_1: float):
         self.train_pos_loss.update(loss_dict["pos"], num_samples)
         self.train_ori_loss.update(loss_dict["ori"], num_samples)
         if self.config.pos_type == "DiscreteSpher":
@@ -206,6 +208,8 @@ class ImageModule(Model):
         if self.config.ori_type == "DiscreteEuler":
             self.train_euler_loss.update(loss_dict["euler"], num_samples)
         self.train_loss.update(loss, num_samples)
+        self.beta_0 = beta_0
+        self.beta_1 = beta_1
     
 
     def _train_log(self, log_online):
@@ -217,6 +221,7 @@ class ImageModule(Model):
         if self.config.ori_type == "DiscreteEuler":
             data.update(self.train_euler_loss.compute())
         data.update({"loss": self.train_loss.compute()})
+        data.update({"beta_0": self.beta_0, "beta_1": self.beta_1})
         self.log_dict(data=data,
                       epoch=self.trainer.now_epoch,
                       on_bar=True,
@@ -232,14 +237,13 @@ class ImageModule(Model):
         if self.config.ori_type == "DiscreteEuler":
             self.train_euler_loss.reset()
         self.train_loss.reset()
+        self.beta_0 = None
+        self.beta_1 = None
 
 
-    def _update_val_metrics(self, num_samples: int, pos_loss_dict: dict[str, Tensor], ori_loss_dict: dict[str, Tensor], loss: Tensor,
+    def _update_val_metrics(self, num_samples: int,
                                   pos_decode: Tensor, pos_label: Tensor,
                                   ori_decode: Tensor, ori_label: Tensor):
-        self.val_pos_loss.update(pos_loss_dict, num_samples)
-        self.val_ori_loss.update(ori_loss_dict, num_samples)
-        self.val_loss.update(loss, num_samples)
         self.pos_error.update(pos_decode, pos_label, num_samples)
         self.ori_error.update(ori_decode, ori_label, num_samples)
         self.score.update(self.pos_error.compute(), self.ori_error.compute())
@@ -247,10 +251,7 @@ class ImageModule(Model):
 
     def _val_log(self, log_online):
         data = {}
-        data.update(self.val_pos_loss.compute())
-        data.update(self.val_ori_loss.compute())
         data.update({
-            "loss": self.val_loss.compute(),
             "pos_error": self.pos_error.compute(),
             "ori_error": self.ori_error.compute(),
             "score": self.score.compute(),
@@ -263,9 +264,6 @@ class ImageModule(Model):
     
 
     def _val_metrics_reset(self):
-        self.val_pos_loss.reset()
-        self.val_ori_loss.reset()
-        self.val_loss.reset()
         self.pos_error.reset()
         self.ori_error.reset()
         self.score.reset()

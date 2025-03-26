@@ -9,45 +9,39 @@ class DiscreteSpher():
     discrete spherical coordinate probability distribution
     """
 
-    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cuda"):
+    def __init__(self, angle_stride: int, r_stride: int, r_max: int, device: str = "cuda"):
         """
         Args:
             angle_stride (int): the stride of the grid in polar and azimuthal angle
             r_stride (int): the stride of the grid in radius            
             r_max (int): maximum radius value
-            alpha (float): the alpha value of the distribution
-            neighbor (int): the number of neighbors
             device (str): the device to use
         """
         self.angle_stride = angle_stride
         self.r_stride = r_stride
         self.r_max = r_max
-        self.alpha = alpha
-        self.neighbor = neighbor
         self.device = device
-        self.theta_len = 90 // angle_stride + 1 + 2*neighbor
-        self.phi_len = 360 // angle_stride + 1 + 2*neighbor
-        self.r_len = r_max // r_stride + 1 + 2*neighbor
-        self.theta_range = torch.linspace(-neighbor * angle_stride, 90 + neighbor * angle_stride, self.theta_len, device=device)
-        self.phi_range = torch.linspace(-neighbor * angle_stride, 360 + neighbor * angle_stride, self.phi_len, device=device) - 180
-        self.r_range = torch.linspace(-neighbor * r_stride, r_max + neighbor * r_stride, self.r_len, device=device)
+        self.theta_len = int(90 // angle_stride + 1)
+        self.phi_len = int(360 // angle_stride + 1)
+        self.r_len = int(r_max // r_stride + 1)
+        self.theta_range = torch.linspace(0, 90, self.theta_len, device=device)
+        self.phi_range = torch.linspace(0, 360, self.phi_len, device=device) - 180
+        self.r_range = torch.linspace(0, r_max, self.r_len, device=device)
         self.theta_index_dict = {int(theta // angle_stride): i for i, theta in enumerate(self.theta_range)}
         self.phi_index_dict = {int(phi // angle_stride): i for i, phi in enumerate(self.phi_range)}
         self.r_index_dict = {int(r // r_stride): i for i, r in enumerate(self.r_range)}
     
 
 class DiscreteSpherEncoder(DiscreteSpher):
-    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cuda"):
+    def __init__(self, angle_stride: int, r_stride: int, r_max: int, device: str = "cuda"):
         """
         Args:
             angle_stride (int): the stride of the grid in polar and azimuthal angle
             r_stride (int): the stride of the grid in radius
             r_max (int): maximum radius value
-            alpha (float): the alpha value of the distribution
-            neighbor (int): the number of neighbors
             device (str): the device
         """
-        super().__init__(angle_stride, r_stride, r_max, alpha, neighbor, device)
+        super().__init__(angle_stride, r_stride, r_max, device)
     
     def _encode_pos(self, x: float, x_len: int, x_stride: int, index_dict: dict):
         x_encode = np.zeros(x_len, dtype=np.float32)
@@ -59,16 +53,6 @@ class DiscreteSpherEncoder(DiscreteSpher):
         else:
             x_encode[index_dict[l]] = (r - mean) / (r - l)
             x_encode[index_dict[r]] = (mean - l) / (r - l)
-        
-        weight = 1
-        for _ in range(self.neighbor):
-            x_encode[index_dict[l]] *= (1 - self.alpha)
-            x_encode[index_dict[r]] *= (1 - self.alpha)
-            l -= 1
-            r += 1
-            weight *= self.alpha
-            x_encode[index_dict[l]] = (r - mean) / (r - l) * weight
-            x_encode[index_dict[r]] = (mean - l) / (r - l) * weight
         
         return x_encode
 
@@ -97,17 +81,15 @@ class DiscreteSpherEncoder(DiscreteSpher):
 
 
 class DiscreteSpherDecoder(DiscreteSpher):
-    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cuda"):
+    def __init__(self, angle_stride: int, r_stride: int, r_max: int, device: str = "cuda"):
         """
         Args:
             angle_stride (int): the stride of the grid in polar and azimuthal angle
             r_stride (int): the stride of the grid in radius
             r_max (int): maximum radius value
-            alpha (float): the alpha value of the distribution
-            neighbor (int): the number of neighbors
             device (str): the device
         """
-        super().__init__(angle_stride, r_stride, r_max, alpha, neighbor, device)
+        super().__init__(angle_stride, r_stride, r_max, device)
 
 
     def decode_batch(self, pos_pre_dict: dict[str, Tensor]) -> Tensor:
@@ -139,17 +121,15 @@ class DiscreteSpherDecoder(DiscreteSpher):
 
 
 class DiscreteSpher2Spher(DiscreteSpher):
-    def __init__(self, angle_stride: int, r_stride: int, r_max: int, alpha: float, neighbor: int, device: str = "cpu"):
+    def __init__(self, angle_stride: int, r_stride: int, r_max: int, device: str = "cpu"):
         """
         Args:
             angle_stride (int): the stride of the grid in polar and azimuthal angle
             r_stride (int): the stride of the grid in radius
             r_max (int): maximum radius value
-            alpha (float): the alpha value of the distribution
-            neighbor (int): the number of neighbors
             device (str): the device
         """
-        super().__init__(angle_stride, r_stride, r_max, alpha, neighbor, device)
+        super().__init__(angle_stride, r_stride, r_max, device)
     
     def __call__(self, pos_pre_dict: dict[str, Tensor]) -> Tensor:
         """

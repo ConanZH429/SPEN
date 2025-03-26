@@ -61,5 +61,6 @@ def read_spark_data(image_name: str, config) -> Tuple[np.ndarray, np.ndarray, np
     image = cv.imread(str(image_path))
     pos = np.array(label[image_name]["pos"], dtype=np.float32)
     ori = np.array(label[image_name]["ori"], dtype=np.float32)
+    box = np.array(label[image_name]["bbox"], dtype=np.int32)
 
-    return image, pos, ori
+    return image, pos, ori, box

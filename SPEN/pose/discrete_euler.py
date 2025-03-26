@@ -11,24 +11,20 @@ class DiscreteEuler():
     discrete Euler angle probability distribution
     """
 
-    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cuda"):
+    def __init__(self, stride: int, device: str = "cuda"):
         """
         Args:
             stride (int): the stride of the grid
-            alpha (float): the alpha value of the distribution
-            neighbor (int): the number of neighbors
             device (str): the device to use
         """
         self.stride = stride
-        self.alpha = alpha
-        self.neighbor = neighbor
         self.device = device
-        self.yaw_len = int(360 // stride + 1 + 2*neighbor)
-        self.pitch_len = int(180 // stride + 1 + 2*neighbor)
-        self.roll_len = int(360 // stride + 1 + 2*neighbor)
-        self.yaw_range = torch.linspace(-neighbor * stride, 360 + neighbor * stride, self.yaw_len) - 180        # -180 ~ 180
-        self.pitch_range = torch.linspace(-neighbor * stride, 180 + neighbor * stride, self.pitch_len) - 90        # -90 ~ 90
-        self.roll_range = torch.linspace(-neighbor * stride, 360 + neighbor * stride, self.roll_len) - 180        # -180 ~ 180
+        self.yaw_len = int(360 // stride + 1)
+        self.pitch_len = int(180 // stride + 1)
+        self.roll_len = int(360 // stride + 1)
+        self.yaw_range = torch.linspace(0, 360, self.yaw_len) - 180        # -180 ~ 180
+        self.pitch_range = torch.linspace(0, 180, self.pitch_len) - 90        # -90 ~ 90
+        self.roll_range = torch.linspace(0, 360, self.roll_len) - 180        # -180 ~ 180
         self.yaw_range.requires_grad_(False)
         self.pitch_range.requires_grad_(False)
         self.roll_range.requires_grad_(False)
@@ -41,15 +37,13 @@ class DiscreteEuler():
 
 
 class DiscreteEulerEncoder(DiscreteEuler):
-    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cuda"):
+    def __init__(self, stride: int, device: str = "cuda"):
         """
         Args:
             stride (int): the stride of the grid
-            alpha (float): the alpha value of the distribution
-            neighbor (int): the number of neighbors
             device (str): the device
         """
-        super().__init__(stride, alpha, neighbor, device)
+        super().__init__(stride, device)
     
     def _encode_ori(self, angle: float, angle_len: int, index_dict: dict):
         angle_encode = np.zeros(angle_len, dtype=np.float32)
@@ -61,16 +55,6 @@ class DiscreteEulerEncoder(DiscreteEuler):
         else:
             angle_encode[index_dict[l]] = (r - mean) / (r - l)
             angle_encode[index_dict[r]] = (mean - l) / (r - l)
-        
-        weight = 1
-        for _ in range(self.neighbor):
-            angle_encode[index_dict[l]] *= (1 - self.alpha)
-            angle_encode[index_dict[r]] *= (1 - self.alpha)
-            l -= 1
-            r += 1
-            weight *= self.alpha
-            angle_encode[index_dict[l]] = (r - mean) / (r - l) * weight
-            angle_encode[index_dict[r]] = (mean - l) / (r - l) * weight
         
         return angle_encode
 
@@ -98,15 +82,13 @@ class DiscreteEulerEncoder(DiscreteEuler):
 
 
 class DiscreteEulerDecoder(DiscreteEuler):
-    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cuda"):
+    def __init__(self, stride: int, device: str = "cuda"):
         """
         Args:
             stride (int): the stride of the grid
-            alpha (float): the alpha value of the distribution
-            neighbor (int): the number of neighbors
             device (str): the device
         """
-        super().__init__(stride, alpha, neighbor, device)
+        super().__init__(stride, device)
     
     def _decode_ori(self, angle_encode: Tensor, angle_range: Tensor):
         return torch.sum(angle_encode * angle_range, dim=1)
@@ -176,15 +158,13 @@ class DiscreteEulerDecoder(DiscreteEuler):
 
 
 class DiscreteEuler2Euler(DiscreteEuler):
-    def __init__(self, stride: int, alpha: float, neighbor: int, device: str = "cpu"):
+    def __init__(self, stride: int, device: str = "cpu"):
         """
         Args:
             stride (int): the stride of the grid
-            alpha (float): the alpha value of the distribution
-            neighbor (int): the number of neighbors
             device (str): the device
         """
-        super().__init__(stride, alpha, neighbor, device)
+        super().__init__(stride, device)
     
     def __call__(self, ori_pre_dict: dict[str, Tensor]) -> Tensor:
         """

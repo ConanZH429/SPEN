@@ -164,7 +164,7 @@ class BiFPN(nn.Module):
         p5_w2 = F.relu(self.p5_w2)
         weight = p5_w2 / (torch.sum(p5_w2) + self.eps)
         p5_2 = self.conv5_down(
-            weight[0] * p5_0 + weight[1] * F.max_pool2d(p4_2, kernel_size=2, stride=2)
+            weight[0] * p5_0 + weight[1] * F.max_pool2d(F.pad(p4_2, (0, 0, 1, 1)), kernel_size=2, stride=2)
         )
 
         return p3_2, p4_2, p5_2
@@ -178,18 +178,18 @@ class DensAttFPN(nn.Module):
         # FPN
         self.fuse4_up = AttFuse(in_channels[-3:], att_type)
         self.conv4_up = UniversalInvertedResidual(sum(in_channels[-3:]), in_channels[-2],
-                                                  exp_ratio=8, act_layer=ConvAct, layer_scale_init_value=None)
+                                                  exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
         self.fuse3_up = AttFuse(in_channels[-4:-1], att_type)
         self.conv3_up = UniversalInvertedResidual(sum(in_channels[-4:-1]), in_channels[-3],
-                                                  exp_ratio=8, act_layer=ConvAct, layer_scale_init_value=None)
+                                                  exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
 
         # PAN
         self.downsample_p3 = ConvNormAct(in_channels[-3], in_channels[-3], 3, stride=2, apply_act=False, apply_norm=False)
         self.conv4_down = UniversalInvertedResidual(sum(in_channels[-3:-1]), in_channels[-2],
-                                                    exp_ratio=8, act_layer=ConvAct, layer_scale_init_value=None)
+                                                    exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
         self.downsample_p4 = ConvNormAct(in_channels[-2], in_channels[-2], 3, stride=2, apply_act=False, apply_norm=False)
         self.conv5_down = UniversalInvertedResidual(sum(in_channels[-2:]), in_channels[-1],
-                                                    exp_ratio=8, act_layer=ConvAct, layer_scale_init_value=None)
+                                                    exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
 
         self.out_channels = in_channels[-3:]
         # self.out_channels = [in_channels[-1]]

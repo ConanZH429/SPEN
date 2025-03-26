@@ -44,7 +44,7 @@ def torch_validate_distibution(tensor_a,tensor_b):
     if tensor_a.size() != tensor_b.size():
         raise ValueError("Input weight tensors must be of the same size")
 
-@torch.compile
+# @torch.compile
 class CrossEntropyLoss(nn.Module):
     def __init__(self, **kwargs):
         super(CrossEntropyLoss, self).__init__()

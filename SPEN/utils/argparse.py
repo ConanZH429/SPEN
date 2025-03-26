@@ -12,12 +12,15 @@ def parse2config(config):
     parser.add_argument("--img_first_size", type=int, nargs="+", default=config.image_first_size, help="Image first size")
     parser.add_argument("--img_size", type=int, nargs="+", default=config.image_size, help="Image size")
     parser.add_argument("--epochs", type=int, default=config.epochs, help="Number of epochs")
+    parser.add_argument("--beta_cos", action="store_true", help="Beta cosine")
+    parser.add_argument("--beta_epochs", type=int, default=config.beta_epochs, help="Beta epochs")
     parser.add_argument("--batch_size", type=int, default=config.batch_size, help="Batch size")
     parser.add_argument("--num_workers", type=int, default=config.num_workers, help="Number of workers")
     parser.add_argument("--scheduler", type=str, default=config.scheduler, help="Scheduler")
     parser.add_argument("--optimizer", type=str, default=config.optimizer, help="Optimizer")
     parser.add_argument("--cache", action="store_true", help="Cache dataset")
     parser.add_argument("--lr0", type=float, default=config.lr0, help="Initial learning rate")
+    parser.add_argument("--lr_min", type=float, default=config.lr_min, help="Minimum learning rate")
     parser.add_argument("--compile", action="store_true", help="Compile")
     parser.add_argument("--gradient_clip_val", type=float, default=config.gradient_clip_val, help="Gradient clip value")
     # backbone
@@ -30,23 +33,21 @@ def parse2config(config):
     parser.add_argument("--att_type", type=str, default=config.neck_args["DensAttFPN"]["att_type"], help="Attention type",
                         choices=["SSIA", "SE", "SAM", "CBAM"])
     # head
-    parser.add_argument("--weighted", action="store_true", help="Weighted")
-    parser.add_argument("--avg_size", type=int, nargs="+", default=config.avg_size, help="global average pool size")
+    parser.add_argument("--head", type=str, default=config.head, help="Head",
+                        choices=list(config.head_args.keys()))
+    parser.add_argument("--pool_size", type=int, nargs="+", default=(1, ), help="Pool size")
+    parser.add_argument("--weighted_learnable", action="store_true", help="Weighted learnable")
     # pos
     parser.add_argument("--pos_type", type=str, default=config.pos_type, help="Position type",
                         choices=list(config.pos_args.keys()))
-    parser.add_argument("--r_stride", type=int, default=config.pos_args["DiscreteSpher"]["r_stride"], help="r stride")
-    parser.add_argument("--angle_stride", type=int, default=config.pos_args["DiscreteSpher"]["angle_stride"], help="angle stride")
-    parser.add_argument("--discrete_spher_alpha", type=float, default=config.pos_args["DiscreteSpher"]["alpha"], help="discrete spher alpha")
-    parser.add_argument("--discrete_spher_neighbor", type=int, default=config.pos_args["DiscreteSpher"]["neighbor"], help="discrete spher neighbor")
+    parser.add_argument("--r_stride", type=float, default=config.pos_args["DiscreteSpher"]["r_stride"], help="r stride")
+    parser.add_argument("--angle_stride", type=float, default=config.pos_args["DiscreteSpher"]["angle_stride"], help="angle stride")
     parser.add_argument("--pos_loss_type", type=str, default=config.pos_loss_type, help="Position loss type",
                         choices=list(config.pos_loss_args.keys()))
     # ori
     parser.add_argument("--ori_type", type=str, default=config.ori_type, help="Orientation type",
                         choices=list(config.ori_args.keys()))
     parser.add_argument("--stride", type=int, default=config.ori_args["DiscreteEuler"]["stride"], help="stride")
-    parser.add_argument("--discrete_euler_alpha", type=float, default=config.ori_args["DiscreteEuler"]["alpha"], help="discrete euler alpha")
-    parser.add_argument("--discrete_euler_neighbor", type=int, default=config.ori_args["DiscreteEuler"]["neighbor"], help="discrete euler neighbor")
     parser.add_argument("--ori_loss_type", type=str, default=config.ori_loss_type, help="Orientation loss type",
                         choices=list(config.ori_loss_args.keys()))
     # score
@@ -65,12 +66,15 @@ def parse2config(config):
     config.image_first_size = tuple(map(int, args.img_first_size))
     config.image_size = tuple(map(int, args.img_size))
     config.epochs = args.epochs
+    config.beta_cos = args.beta_cos
+    config.beta_epochs = args.beta_epochs
     config.batch_size = args.batch_size
     config.num_workers = args.num_workers
     config.scheduler = args.scheduler
     config.optimizer = args.optimizer
     config.cache = args.cache
     config.lr0 = args.lr0
+    config.lr_min = args.lr_min
     config.compile = args.compile
     config.gradient_clip_val = args.gradient_clip_val
     config.backbone = args.backbone
@@ -78,18 +82,15 @@ def parse2config(config):
     config.neck_args["PAFPN"]["align_channels"] = args.align_channels
     config.neck_args["BiFPN"]["align_channels"] = args.align_channels
     config.neck_args["DensAttFPN"]["att_type"] = args.att_type
-    config.weighted = args.weighted
-    config.avg_size = tuple(map(int, args.avg_size))
+    config.head = args.head
+    config.head_args[config.head]["pool_size"] = tuple(map(int, args.pool_size))
+    config.head_args["MixPoolHead"]["weighted_learnable"] = args.weighted_learnable
     config.pos_type = args.pos_type
     config.pos_args["DiscreteSpher"]["r_stride"] = args.r_stride
     config.pos_args["DiscreteSpher"]["angle_stride"] = args.angle_stride
-    config.pos_args["DiscreteSpher"]["alpha"] = args.discrete_spher_alpha
-    config.pos_args["DiscreteSpher"]["neighbor"] = args.discrete_spher_neighbor
     config.pos_loss_type = args.pos_loss_type
     config.ori_type = args.ori_type
     config.ori_args["DiscreteEuler"]["stride"] = args.stride
-    config.ori_args["DiscreteEuler"]["alpha"] = args.discrete_euler_alpha
-    config.ori_args["DiscreteEuler"]["neighbor"] = args.discrete_euler_neighbor
     config.ori_loss_type = args.ori_loss_type
     config.ALPHA = tuple(map(float, args.ALPHA))
     config.BETA = tuple(map(float, args.BETA))

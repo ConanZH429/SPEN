@@ -2,27 +2,27 @@ from pathlib import Path
 
 from ..TorchModel import Config
 
-class SPEEDConfig(Config):
+class SPARKConfig(Config):
     def __init__(self):
         super().__init__()
         # config
         self.exp_type = "test"
         self.seed = 9999
+        self.deterministic = False
         self.benchmark = True
         self.debug = False
         self.comet_api = "agcu7oeqU395peWf6NCNqnTa7"
         self.offline = False
 
         # dataset
-        self.dataset_folder = Path("../datasets/speed")
-        self.train_ratio = 0.90
-        self.val_ratio = 0.10
-        self.cache = False
+        self.dataset_folder = Path("../SPARK-Stream-2")
+        self.cache = True
         self.resize_first = True
+        # 1080 1440
         # self.image_first_size = (1000, 1600)
-        self.image_first_size = (800, 1280)
-        # self.image_size = (480, 768)
-        self.image_size = (400, 640)
+        self.image_first_size = (720, 960)
+        # self.image_size = (432, 576)
+        self.image_size = (360, 480)
 
         # train
         self.device = "cuda"
@@ -30,12 +30,10 @@ class SPEEDConfig(Config):
         self.lr0 = 0.001
         self.lr_min = 0.000001
         self.warmup_epochs = 5
-        self.beta_cos = False
-        self.beta_epochs = 200
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
-        self.batch_size = 50
+        self.batch_size = 40
         self.num_workers = 20
         self.compile = False
         self.gradient_clip_val = None
@@ -62,7 +60,7 @@ class SPEEDConfig(Config):
             "DensAttFPN": {"att_type": None},    # SE, SAM, CBAM, SSIA
         }
         # head
-        self.head = "AvgPoolHead"
+        self.head = "AvgPoolHead"                
         self.head_args = {
             "AvgPoolHead": {"pool_size": (1, )},
             "MaxPoolHead": {"pool_size": (1, )},
@@ -94,6 +92,8 @@ class SPEEDConfig(Config):
                 "r_max": 50,
                 "r_stride": 1,
                 "angle_stride": 1,
+                "alpha": 0.0,
+                "neighbor": 0,
                 "device": "cuda",
             }
         }
@@ -105,6 +105,8 @@ class SPEEDConfig(Config):
             "Euler": {},
             "DiscreteEuler": {
                 "stride": 1,
+                "alpha": 0.0,
+                "neighbor": 0,
                 "device": "cuda"
             },   
         }
@@ -146,8 +148,8 @@ class SPEEDConfig(Config):
             "WassersteinLoss": {}
         }
 
-        self.ALPHA = (5, 1)              # score
-        self.BETA = (1, 5)               # loss
+        self.ALPHA = (1, 1)              # score
+        self.BETA = (1, 1)               # loss
 
         # augmentation
         self.ZAxisRotation_p = 0.8
@@ -158,12 +160,12 @@ class SPEEDConfig(Config):
 
         self.Perspective_p = 0.0
         self.Perspective_args = {
-            "rotation_p": 0.2,
-            "max_angle": 20,
-            "translation_p": 0.2,
+            "rotation_p": 0.1,
+            "max_angle": 10,
+            "translation_p": 0.1,
             "max_x": 0.2,
             "max_y": 0.2,
-            "scale_p": 0.2,
+            "scale_p": 1.0,
             "max_scale": 0.2,
             "max_t": 5,
         }

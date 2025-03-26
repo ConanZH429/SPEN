@@ -137,7 +137,7 @@ class PerspectiveAug():
                 if t > self.max_t:
                     return image, pos, ori, box
         
-        rotation_matrix = self.Camera.K_inv @ warp_matrix @ self.Camera.K
+        rotation_matrix = self.Camera.K_image_inv @ warp_matrix @ self.Camera.K_image
         rotation = R.from_matrix(rotation_matrix)
         image_warpped = cv.warpPerspective(image, warp_matrix, (w, h), flags=cv.INTER_LINEAR)
 
@@ -182,7 +182,7 @@ class ZAxisRotation():
             rotation = R.from_euler("YXZ", [0, 0, angle], degrees=True)
             rotation_matrix = rotation.as_matrix()
 
-            warp_matrix = self.Camera.K @ rotation_matrix @ self.Camera.K_inv
+            warp_matrix = self.Camera.K_image @ rotation_matrix @ self.Camera.K_image_inv
 
             box_warpped = warp_box(box, warp_matrix, w, h)
             box_warpped_area = (box_warpped[2] - box_warpped[0]) * (box_warpped[3] - box_warpped[1])
@@ -199,7 +199,7 @@ class ZAxisRotation():
         ori_warpped = rotation * R.from_quat(ori, scalar_first=True)
         ori_warpped = ori_warpped.as_quat(canonical=True, scalar_first=True)
 
-        return image_warpped, pos_warpped.astype(np.float32), ori_warpped.astype(np.float32), box_warpped.astype(np.float32)
+        return image_warpped, pos_warpped.astype(np.float32), ori_warpped.astype(np.float32), box_warpped.astype(np.int32)
 
 class AlbumentationAug():
     """
@@ -311,14 +311,14 @@ class CropAndPadSafe():
 
         # Random crop around the bounding box
         top = np.random.randint(0, y_min) if y_min > 0 else 0
-        bottom = np.random.randint(0, h - y_max) if y_max < h else 0
+        bottom = np.random.randint(y_max, h) if y_max < h else h
         left = np.random.randint(0, x_min) if x_min > 0 else 0
-        right = np.random.randint(0, w - x_max) if x_max < w else 0
+        right = np.random.randint(x_max, w) if x_max < w else w
 
         # Crop the image
-        cropped_image = image[top:h-bottom, left:w-right]
+        cropped_image = image[top:bottom, left:right]
         # Pad the image
-        padded_image = cv.copyMakeBorder(cropped_image, top, bottom, left, right, cv.BORDER_REPLICATE)
+        padded_image = cv.copyMakeBorder(cropped_image, top, h-bottom, left, w-right, cv.BORDER_REPLICATE)
 
         return padded_image
 

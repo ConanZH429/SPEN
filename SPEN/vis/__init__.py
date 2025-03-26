@@ -1,2 +1,2 @@
-from .display_image import display_image, display_axis, display_box
+from .display_image import display_image
 from .read_data import read_speed_data, read_spark_data

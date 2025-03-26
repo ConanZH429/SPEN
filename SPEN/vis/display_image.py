@@ -3,14 +3,14 @@ import numpy as np
 import json
 import cv2 as cv
 from scipy.spatial.transform import Rotation as R
-from typing import Union
+from typing import Union, Optional
 
 from ..utils import SPEEDCamera, SPARKCamera
 from ..cfg import SPEEDConfig, SPARKConfig
 from .utils import show_image
 from .read_data import read_speed_data, read_spark_data
 
-def display_axis(image: np.ndarray, pos: np.ndarray, ori: np.ndarray, alpha: float = 1.0, show: bool = False, camera: Union[SPEEDCamera, SPARKCamera] = None) -> np.ndarray:
+def draw_axis(image: np.ndarray, pos: np.ndarray, ori: np.ndarray, alpha: float = 1.0, show: bool = False, camera: Union[SPEEDCamera, SPARKCamera] = None) -> np.ndarray:
     """
     Display the axis on the image.
 
@@ -33,9 +33,10 @@ def display_axis(image: np.ndarray, pos: np.ndarray, ori: np.ndarray, alpha: flo
         extrinsic_mat = np.hstack((rotation.as_matrix(), pos.reshape(3, 1)))
         points_cam = extrinsic_mat @ points_world
         points_cam = points_cam / points_cam[2]
-        points_image = Camera.K @ points_cam
+        points_image = Camera.K_image @ points_cam
         return points_image[0], points_image[1]
-    
+
+
     xa, ya = project(pos, ori, camera)
     origin = (int(xa[0]), int(ya[0]))
     x_axis = (int(xa[1]), int(ya[1]))
@@ -56,7 +57,7 @@ def display_axis(image: np.ndarray, pos: np.ndarray, ori: np.ndarray, alpha: flo
     return image
 
 
-def display_box(image: np.ndarray, box: np.ndarray, show: bool = False) -> np.ndarray:
+def draw_box(image: np.ndarray, box: np.ndarray, show: bool = False) -> np.ndarray:
     """
     Display the bounding box on the image.
 
@@ -75,15 +76,46 @@ def display_box(image: np.ndarray, box: np.ndarray, show: bool = False) -> np.nd
     return image
 
 
-def display_image(image_name: str = None,
-                  image: Union[np.ndarray, None] = None,
+def draw_world_points(image: np.ndarray, points: np.ndarray, pos: np.ndarray, ori: np.ndarray, Camera, color: tuple = (0, 0, 255), show: bool = False) -> np.ndarray:
+    """
+    Display the points on the image.
+
+    Args:
+        points (np.ndarray): The points to display.
+        pos (np.ndarray): The position of the axis.
+        ori (np.ndarray): The orientation of the axis.
+        Camera (Union[SPEEDCamera, SPARKCamera]): The camera to project the point.
+        color (tuple): The color of the points. Default: (0, 255, 0).
+        show (bool): Whether to show the image. Default: False.
+    
+    Returns:
+        np.ndarray: The image with the points.
+    """
+    points_world = np.hstack((points, np.ones((points.shape[0], 1)))).T
+    rotation = R.from_quat(ori, scalar_first=True)
+    extrinsic_mat = np.hstack((rotation.as_matrix(), pos.reshape(3, 1)))
+    points_cam = extrinsic_mat @ points_world
+    points_cam = points_cam / points_cam[2]
+    points_image = Camera.K_image @ points_cam
+    points_image = points_image.T
+    for point_image in points_image:
+        image = cv.circle(image, tuple(point_image[:-1].astype(int)), 7, color, -1)
+    if show:
+        show_image(image)
+    return image
+
+def display_image(image_name: Optional[str] = None,
+                  image: Optional[np.ndarray] = None,
                   display_label_axis: bool = True,
                   display_pre_axis: bool = False,
                   display_box: bool = False,
+                  display_point: bool = False,
+                  point: Optional[np.ndarray] = None,
                   dataset_type: str = "SPEED",
-                  save_path: Union[None, str] = None,
-                  pos: Union[np.ndarray, None] = None,
-                  ori: Union[np.ndarray, None] = None) -> None:
+                  save_path: Optional[str] = None,
+                  pos: Optional[np.ndarray] = None,
+                  ori: Optional[np.ndarray] = None,
+                  box: Optional[np.ndarray] = None) -> None:
     """
     Display the image with the label axis and the predicted axis.
 
@@ -104,25 +136,27 @@ def display_image(image_name: str = None,
     # Read the image and the label
     if dataset_type == "SPEED":
         config = SPEEDConfig()
-        image_to_show, pos_label, ori_label, box = read_speed_data(image_name, config=config)
-        Camera = SPEEDCamera
+        image_to_show, pos_label, ori_label, box_label = read_speed_data(image_name, config=config)
     elif dataset_type == "SPARK":
         config = SPARKConfig()
-        image_to_show, pos_label, ori_label = read_spark_data(image_name, config=config)
-        Camera = SPARKCamera
+        image_to_show, pos_label, ori_label, box_label = read_spark_data(image_name, config=config)
     else:
         raise ValueError("Invalid dataset!")
     image_to_show = image_to_show if image is None else image
-    image_to_show = cv.cvtColor(image_to_show, cv.COLOR_GRAY2BGR)
+    Camera = SPEEDCamera(image_to_show.shape) if dataset_type == "SPEED" else SPARKCamera(image_to_show.shape)
+    if len(image_to_show.shape) == 2:
+        image_to_show = cv.cvtColor(image_to_show, cv.COLOR_GRAY2BGR)
     pos_label = pos_label if pos is None else pos
     ori_label = ori_label if ori is None else ori
-
+    box_label = box_label if box is None else box
     if display_label_axis:
-        image_to_show = display_axis(image_to_show, pos_label, ori_label, camera=Camera)
+        image_to_show = draw_axis(image_to_show, pos_label, ori_label, camera=Camera)
     if display_pre_axis:
         pass
     if display_box:
-        pass
+        image_to_show = draw_box(image_to_show, box_label)
+    if display_point and point is not None:
+        image_to_show = draw_world_points(image_to_show, point, pos_label, ori_label, Camera)
     if save_path:
         cv.imwrite(save_path, image_to_show)
     show_image(image_to_show)

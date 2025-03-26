@@ -6,11 +6,12 @@ import torch.nn.functional as F
 from timm.layers.mlp import Mlp, GluMlp
 from timm.layers.conv_bn_act import ConvNormAct
 from timm.models._efficientnet_blocks import UniversalInvertedResidual
+from timm.models.vision_transformer import Block, Attention
 
 from timm.layers.squeeze_excite import SEModule
 from timm.layers.cbam import SpatialAttn, CbamModule
 
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union, Literal
 
 
 ConvAct = nn.Mish
@@ -88,7 +89,6 @@ class Fuse(nn.Module):
             current_feature,
             F.interpolate(deep_feature, size=current_feature.shape[-2:], mode='bilinear', align_corners=True)
         ], dim=1)
-        # feature_fused = self.conv_downsample(shallow_feature) + current_feature + F.interpolate(deep_feature, size=current_feature.shape[-2:], mode='bilinear', align_corners=True)
         feature_fused = self.attention(feature_fused)
         return feature_fused
 
@@ -107,7 +107,7 @@ class SAMFuse(Fuse):
 class CBAMFuse(Fuse):
     def __init__(self, in_channels: List[int]):
         super().__init__(in_channels)
-        self.attention = CbamModule(sum(in_channels), rd_ratio=1./16, act_layer=ConvAct)
+        self.attention = CbamModule(sum(in_channels), rd_ratio=1./8, act_layer=ConvAct)
 
 
 class AttFuse(nn.Module):
@@ -181,3 +181,229 @@ class MHA(nn.Module):
     
     def forward(self, x: Tensor):
         pass
+
+
+class AvgPool(nn.Module):
+    def __init__(self,
+                 pool_size: Union[int, Tuple[int, int]],
+                 single: bool = False):
+        super().__init__()
+        self.pool_size = pool_size
+        if single:
+            self.forward = self.forward_single
+    
+    def forward(self, x: Tensor):
+        pos_feature = F.adaptive_avg_pool2d(x, self.pool_size).flatten(2)      # B, C, H, W -> B, C, S
+        ori_feature = pos_feature
+        return pos_feature, ori_feature
+
+    def forward_single(self, x: Tensor):
+        return F.adaptive_avg_pool2d(x, self.pool_size).flatten(2)      # B, C, H, W -> B, C, S
+
+
+class MaxPool(nn.Module):
+    def __init__(self,
+                 pool_size: Union[int, Tuple[int, int]],
+                 single: bool = False):
+        super().__init__()
+        self.pool_size = pool_size
+        if single:
+            self.forward = self.forward_single
+    
+    def forward(self, x: Tensor):
+        pos_feature = F.adaptive_max_pool2d(x, self.pool_size).flatten(2)      # B, C, H, W -> B, C, S
+        ori_feature = pos_feature
+        return pos_feature, ori_feature
+
+    def forward_single(self, x: Tensor):
+        return F.adaptive_max_pool2d(x, self.pool_size).flatten(2)      # B, C, H, W -> B, C, S
+
+
+class MixPool(nn.Module):
+    def __init__(self,
+                 pool_size: Union[int, Tuple[int, int]],
+                 weighted_learnable: bool = False,
+                 single: bool = False):
+        super().__init__()
+        self.avg_pool = AvgPool(pool_size, single=True)
+        self.max_pool = MaxPool(pool_size, single=True)
+        if single:
+            self.forward = self.forward_single
+            if weighted_learnable:
+                self.weight = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
+            else:
+                self.register_buffer("weight", torch.tensor([1, 1], dtype=torch.float32, requires_grad=False))
+        else:
+            if weighted_learnable:
+                self.weight = nn.Parameter(torch.ones(4, dtype=torch.float32), requires_grad=True)
+            else:
+                self.register_buffer("weight", torch.tensor([1, 1, 1, 1], dtype=torch.float32, requires_grad=False))
+    
+    def forward(self, x: Tensor):
+        avg_feature = self.avg_pool(x)  # B, C, H, W -> B, C, S
+        max_feature = self.max_pool(x)  # B, C, H, W -> B, C, S
+        weight = F.sigmoid(self.weight) # 4
+        pos_feature = avg_feature * weight[0] + max_feature * weight[1] # B, C, S
+        ori_feature = avg_feature * weight[2] + max_feature * weight[3] # B, C, S
+        return pos_feature, ori_feature  # B, C, S
+
+    def forward_single(self, x: Tensor):
+        avg_feature = self.avg_pool(x)
+        max_feature = self.max_pool(x)
+        weight = F.sigmoid(self.weight)
+        return avg_feature * weight[0] + max_feature * weight[1]
+
+
+class SPP(nn.Module):
+    def __init__(self,
+                 pool_size: Union[Tuple[int], Tuple[Tuple[int, int]]] = (1, 2),
+                 mode:  Literal["max", "mean", "mix"] = "max",
+                 single: bool = False):
+        super().__init__()
+        self.pool_size = pool_size
+        self.mode = mode
+
+        if self.mode == "max":
+            self.pool_list = [MaxPool(size, single=single) for size in self.pool_size]
+        elif self.mode == "mean":
+            self.pool_list = [AvgPool(size, single=single) for size in self.pool_size]
+        elif self.mode == "mix":
+            self.pool_list = [MixPool(size, single=single) for size in self.pool_size]
+        else:
+            raise ValueError(f"Unknown spp pooling mode: {mode}")
+        
+        if single:
+            self.forward = self.forward_single
+    
+    def forward(self, x: Tensor):
+        pooled_feature = [pool(x) for pool in self.pool_list]           # B, C, H, W -> B, C, S
+        pos_feature = torch.cat([feature[0] for feature in pooled_feature], dim=-1)
+        ori_feature = torch.cat([feature[1] for feature in pooled_feature], dim=-1)
+        return pos_feature, ori_feature
+
+    def forward_single(self, x: Tensor):
+        return torch.cat([pool(x) for pool in self.pool_list], dim=-1)
+
+
+class PatchEmbedding(nn.Module):
+    def __init__(self,
+                 patch_size: Optional[Union[int, Tuple[int, int]]],
+                 embedding_mode: Literal["mean", "max", "mix"] = "max"):
+        super().__init__()
+        self.patch_size = patch_size
+        
+        if patch_size is None:
+            self.patch_embedding = nn.Flatten(2)
+        elif embedding_mode == "mean":
+            self.patch_embedding = AvgPool(patch_size, single=True)
+        elif embedding_mode == "max":
+            self.patch_embedding = MaxPool(patch_size, single=True)
+        elif embedding_mode == "mix":
+            self.patch_embedding = MixPool(patch_size, single=True)
+        else:
+            raise ValueError(f"Unknown embedding mode: {embedding_mode}")
+    
+    def forward(self, x: Tensor):
+        return self.patch_embedding(x).transpose(1, 2)  # B, C, H, W -> B, C, S -> B, S, C
+
+
+class MHAPool(nn.Module):
+    def __init__(self,
+                 in_channels: int,
+                 patch_size: Optional[Union[int, Tuple[int, int]]],
+                 embedding_mode: Literal["max", "mean", "mix"],
+                 pool_size: Union[int, Tuple[int, int], Tuple[Tuple[int, int]]],
+                 pool_mode: Literal["max", "mean", "mix", "sppmax", "sppmean", "sppmix"] = "sppmax",
+                 num_heads: int = 8,
+                 single: bool = False):
+        super().__init__()
+        self.in_channels = in_channels
+        self.pool_size = pool_size
+        self.pool_mode = pool_mode
+        self.num_heads = num_heads
+
+        self.patch_embedding = PatchEmbedding(patch_size, embedding_mode)
+
+        self.att = Attention(
+            dim=in_channels,
+            num_heads=num_heads,
+            qkv_bias=True,
+        )
+
+        if pool_mode == "max":
+            self.pool = MaxPool(pool_size, single=single)
+        elif pool_mode == "mean":
+            self.pool = AvgPool(pool_size, single=single)
+        elif pool_mode == "mix":
+            self.pool = MixPool(pool_size, single=single)
+        elif pool_mode == "sppmax":
+            self.pool = SPP(pool_size, mode="max", single=single)
+        elif pool_mode == "sppmean":
+            self.pool = SPP(pool_size, mode="mean", single=single)
+        elif pool_mode == "sppmix":
+            self.pool = SPP(pool_size, mode="mix", single=single)
+        else:
+            raise ValueError(f"Unknown pooling mode: {pool_mode}")
+    
+    def forward(self, x: Tensor):
+        B, C, H, W = x.shape
+        patch = self.patch_embedding(x)                       # B, C, H, W -> B, S, C
+        patch = self.att(patch)                                 # B, S, C
+        feature = patch.transpose(1, 2).reshape(B, C, H, W)    # B, S, C -> B, C, S -> B, C, H, W
+        return self.pool(feature)                               # B, C, H, W -> B, C, S
+
+
+class TokenFeature(nn.Module):
+    def __init__(self, 
+                 in_channels: int,
+                 patch_size: Optional[Union[int, Tuple[int, int]]],
+                 embedding_mode: Literal["max", "mean", "mix", "sppmax", "sppmean", "sppmix"] = "max",
+                 num_heads: int = 8,
+                 num_layers: int = 5,
+                 single: bool = False):
+        super().__init__()
+        self.in_channels = in_channels
+        self.num_heads = num_heads
+
+        self.patch_embedding = PatchEmbedding(patch_size, embedding_mode)
+
+        self.blocks = nn.Sequential()
+        self.blocks = nn.Sequential(*[
+            Block(
+                dim=in_channels,
+                num_heads=num_heads,
+            ) for _ in range(num_layers)
+        ])
+        
+        if single:
+            self.token = nn.Parameter(torch.zeros(1, 1, in_channels), requires_grad=True)
+            self.add_learnable_token = self.add_single_learnable_token
+            self.forward = self.forward_single
+        else:
+            self.pos_token = nn.Parameter(torch.zeros(1, 1, in_channels), requires_grad=True)
+            self.ori_token = nn.Parameter(torch.zeros(1, 1, in_channels), requires_grad=True)
+    
+    def add_learnable_token(self, B:int, patch: Tensor):
+        pos_token = self.pos_token.expand(B, -1, -1)
+        ori_token = self.ori_token.expand(B, -1, -1)
+        return torch.cat([pos_token, ori_token, patch], dim=1)
+
+    def add_single_learnable_token(self, B:int, patch: Tensor):
+        token = self.token.expand(B, -1, -1)
+        return torch.cat([token, patch], dim=1)
+
+    def forward(self, x: Tensor):
+        B, C, H, W = x.shape
+        patch = self.patch_embedding(x)       # B, C, H, W -> B, S, C
+        patch = self.add_learnable_token(B, patch)
+        out = self.blocks(patch)                     # B, 2+S, C -> B, 2+S, C
+        out = out.transpose(1, 2)                   # B, 2+S, C -> B, C, 2+S
+        return out[:, :, 0:1], out[:, :, 1:2]                        # B, C, 1
+
+    def forward_single(self, x: Tensor):
+        B, C, H, W = x.shape
+        patch = self.patch_embedding(x)       # B, C, H, W -> B, C, S -> B, S, C
+        patch = self.add_learnable_token(B, patch)
+        out = self.blocks(patch)                     # B, 1+S, C -> B, 1+S, C
+        out = out.transpose(1, 2)                   # B, 1+S, C -> B, C, 1+S
+        return out[:, :, 0:1]                        # B, C, 1
