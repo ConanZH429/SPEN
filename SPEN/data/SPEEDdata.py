@@ -73,7 +73,6 @@ def SPEED_split_dataset(config: SPEEDConfig):
     train_list = count_dict["45-50"]
     train_list = train_list + count_dict["40-45"]
     val_list = []
-    train_list = []
     train_count = int(len(count_dict["35-40"]) * config.train_ratio)
     train_list = train_list + count_dict["35-40"][:train_count]
     val_list = val_list + count_dict["35-40"][train_count:]
@@ -176,7 +175,7 @@ class SPEEDDataset(Dataset):
             self.image_dict = {}
             # self._cache_image(self.image_list, self.dataset_folder)
             self._cache_image_multithread(self.image_list)
-            print(f"Load {mode} images ({self.image_dict[self.image_list[0]].shape}) successfully.")
+            print(f"Load {len(self.image_dict)} {mode} images ({self.image_dict[self.image_list[0]].shape}) successfully.")
         self.pos_encoder = get_pos_encoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_encoder = get_ori_encoder(config.ori_type, **config.ori_args[config.ori_type])
         if config.pos_type == "DiscreteSpher":

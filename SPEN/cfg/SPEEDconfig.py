@@ -19,8 +19,8 @@ class SPEEDConfig(Config):
         self.val_ratio = 0.10
         self.cache = False
         self.resize_first = True
-        # self.image_first_size = (1000, 1600)
-        self.image_first_size = (800, 1280)
+        self.image_first_size = (1000, 1600)
+        # self.image_first_size = (800, 1280)
         # self.image_size = (480, 768)
         self.image_size = (400, 640)
 
@@ -69,19 +69,19 @@ class SPEEDConfig(Config):
             "MixPoolHead": {"pool_size": (1, ),
                             "weighted_learnable": False},
             "SPPHead": {"pool_size": ((1, 2), ),
-                        "mode": "max"},
+                        "mode": "mean"},
             "MHAHead": {
                 "patch_size": (None, ),
-                "embedding_mode": "max",
+                "embedding_mode": "mean",
                 "pool_size": (1, ),
-                "pool_mode": "max",
+                "pool_mode": "mean",
                 "num_heads": 8,
             },
             "TokenHead": {
                 "patch_size": (None, ),
-                "embedding_mode": "max",
+                "embedding_mode": "mean",
                 "num_heads": 8,
-                "num_layers": 5,
+                "num_layers": 8,
             }
         }
         
@@ -156,15 +156,15 @@ class SPEEDConfig(Config):
             "max_t": 7,
         }
 
-        self.Perspective_p = 0.0
+        self.Perspective_p = 0.5
         self.Perspective_args = {
             "rotation_p": 0.2,
-            "max_angle": 20,
+            "max_angle": 10,
             "translation_p": 0.2,
-            "max_x": 0.2,
-            "max_y": 0.2,
+            "max_x": 0.1,
+            "max_y": 0.1,
             "scale_p": 0.2,
-            "max_scale": 0.2,
+            "max_scale": 0.1,
             "max_t": 5,
         }
 

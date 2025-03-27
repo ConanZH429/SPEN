@@ -264,11 +264,11 @@ class SPP(nn.Module):
         self.mode = mode
 
         if self.mode == "max":
-            self.pool_list = [MaxPool(size, single=single) for size in self.pool_size]
+            self.pool_list = nn.ModuleList([MaxPool(size, single=single) for size in self.pool_size])
         elif self.mode == "mean":
-            self.pool_list = [AvgPool(size, single=single) for size in self.pool_size]
+            self.pool_list = nn.ModuleList([AvgPool(size, single=single) for size in self.pool_size])
         elif self.mode == "mix":
-            self.pool_list = [MixPool(size, single=single) for size in self.pool_size]
+            self.pool_list = nn.ModuleList([MixPool(size, single=single) for size in self.pool_size])
         else:
             raise ValueError(f"Unknown spp pooling mode: {mode}")
         
@@ -367,7 +367,6 @@ class TokenFeature(nn.Module):
 
         self.patch_embedding = PatchEmbedding(patch_size, embedding_mode)
 
-        self.blocks = nn.Sequential()
         self.blocks = nn.Sequential(*[
             Block(
                 dim=in_channels,
@@ -376,21 +375,31 @@ class TokenFeature(nn.Module):
         ])
         
         if single:
-            self.token = nn.Parameter(torch.zeros(1, 1, in_channels), requires_grad=True)
+            self.token_embedding = nn.Embedding(1, in_channels)
+            self.register_buffer("token", torch.tensor([0], dtype=torch.long, requires_grad=False))
             self.add_learnable_token = self.add_single_learnable_token
             self.forward = self.forward_single
         else:
-            self.pos_token = nn.Parameter(torch.zeros(1, 1, in_channels), requires_grad=True)
-            self.ori_token = nn.Parameter(torch.zeros(1, 1, in_channels), requires_grad=True)
+            self.token_embedding = nn.Embedding(2, in_channels)
+            self.register_buffer("token", torch.tensor([0, 1], dtype=torch.long, requires_grad=False))
+        
+        self.position_embedding = nn.Embedding(4000, in_channels)
     
     def add_learnable_token(self, B:int, patch: Tensor):
-        pos_token = self.pos_token.expand(B, -1, -1)
-        ori_token = self.ori_token.expand(B, -1, -1)
-        return torch.cat([pos_token, ori_token, patch], dim=1)
+        token = self.token.repeat(B, 1)
+        pos_ori_token_embedded = self.token_embedding(token)
+        token_embedded = torch.cat([pos_ori_token_embedded, patch], dim=1)
+        position_token = torch.arange(0, patch.size(1)+2, device=patch.device)                    # S+2
+        position_embedded = self.position_embedding(position_token)        # S+2, C
+        return token_embedded + position_embedded
 
     def add_single_learnable_token(self, B:int, patch: Tensor):
-        token = self.token.expand(B, -1, -1)
-        return torch.cat([token, patch], dim=1)
+        token = self.token.expand(B, 1)
+        token_embedded = self.token_embedding(token)
+        token_embedded = torch.cat([token_embedded, patch], dim=1)
+        position_token = torch.arange(0, patch.size(1)+2, device=patch.device)                    # S+2
+        position_embedded = self.position_embedding(position_token)
+        return token_embedded + position_embedded.unsqueeze(dim=0)
 
     def forward(self, x: Tensor):
         B, C, H, W = x.shape

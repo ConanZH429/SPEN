@@ -36,7 +36,7 @@ def parse2config(config):
     parser.add_argument("--head", type=str, default=config.head, help="Head",
                         choices=list(config.head_args.keys()))
     parser.add_argument("--pool_size", type=int, nargs="+", default=(1, ), help="Pool size")
-    parser.add_argument("--weighted_learnable", action="store_true", help="Weighted learnable")
+    parser.add_argument("--weighted_learnable", action="store_true", help="Weighted learnable", default=False)
     # pos
     parser.add_argument("--pos_type", type=str, default=config.pos_type, help="Position type",
                         choices=list(config.pos_args.keys()))
@@ -84,6 +84,8 @@ def parse2config(config):
     config.neck_args["DensAttFPN"]["att_type"] = args.att_type
     config.head = args.head
     config.head_args[config.head]["pool_size"] = tuple(map(int, args.pool_size))
+    if config.head == "SPPHead":
+        config.head_args["SPPHead"]["pool_size"] = ((1, 2), )
     config.head_args["MixPoolHead"]["weighted_learnable"] = args.weighted_learnable
     config.pos_type = args.pos_type
     config.pos_args["DiscreteSpher"]["r_stride"] = args.r_stride

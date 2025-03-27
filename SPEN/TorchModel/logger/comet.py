@@ -24,12 +24,18 @@ class CometLogger(Logger):
             online (Optional[bool], optional): Whether to log online. Defaults to True.
         """
         super().__init__()
+        ExpConfig = comet_ml.ExperimentConfig(
+            parse_args=False,
+            display_summary_level=1,
+
+        )
         self.experiment = comet_ml.start(
             api_key=api_key,
             workspace=workspace,
             project_name=project_name,
             mode=mode,
-            online=online
+            online=online,
+            experiment_config=ExpConfig,
         )
         self.experiment.set_name(experiment_name)
 
