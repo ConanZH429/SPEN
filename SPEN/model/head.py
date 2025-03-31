@@ -37,9 +37,14 @@ class DiscreteSpherHead(nn.Module):
         self.phi_fc = nn.Linear(in_channels, phi_dim)
     
     def forward(self, pos_feature: Tensor):
-        r_encode = self.r_fc(pos_feature)
-        theta_encode = self.theta_fc(pos_feature)
-        phi_encode = self.phi_fc(pos_feature)
+        if isinstance(pos_feature, tuple):
+            r_encode = self.r_fc(pos_feature[0])
+            theta_encode = self.theta_fc(pos_feature[1])
+            phi_encode = self.phi_fc(pos_feature[2])
+        else:
+            r_encode = self.r_fc(pos_feature)
+            theta_encode = self.theta_fc(pos_feature)
+            phi_encode = self.phi_fc(pos_feature)
         return {
             "r_encode": r_encode,
             "theta_encode": theta_encode,
@@ -83,9 +88,14 @@ class DiscreteEulerHead(nn.Module):
         self.roll_fc = nn.Linear(in_channels, roll_dim)
 
     def forward(self, ori_feature: Tensor):
-        yaw_encode = self.yaw_fc(ori_feature)
-        pitch_encode = self.pitch_fc(ori_feature)
-        roll_encode = self.roll_fc(ori_feature)
+        if isinstance(ori_feature, tuple):
+            yaw_encode = self.yaw_fc(ori_feature[0])
+            pitch_encode = self.pitch_fc(ori_feature[1])
+            roll_encode = self.roll_fc(ori_feature[2])
+        else:
+            yaw_encode = self.yaw_fc(ori_feature)
+            pitch_encode = self.pitch_fc(ori_feature)
+            roll_encode = self.roll_fc(ori_feature)
         return {
             "yaw_encode": yaw_encode,
             "pitch_encode": pitch_encode,
@@ -103,16 +113,20 @@ class Head(nn.Module):
         "Euler": EulerHead,
         "DiscreteEuler": DiscreteEulerHead
     }
-    def __init__(self, pos_type: str, pos_args: Dict[str, Any], ori_type: str, ori_args: Dict[str, Any]):
+    def __init__(self, pos_type: str, pos_args: Dict[str, Any], ori_type: str, ori_args: Dict[str, Any], fuse: bool = True):
         super().__init__()
-        self.pos_fuse_fc = nn.Sequential(
-            nn.Linear(self.feature_dim, self.feature_dim),
-            MLPAct(inplace=True),
-        )
-        self.ori_fuse_fc = nn.Sequential(
-            nn.Linear(self.feature_dim, self.feature_dim),
-            MLPAct(inplace=True),
-        )
+        if fuse:
+            self.pos_fuse_fc = nn.Sequential(
+                nn.Linear(self.feature_dim, self.feature_dim),
+                MLPAct(inplace=True),
+            )
+            self.ori_fuse_fc = nn.Sequential(
+                nn.Linear(self.feature_dim, self.feature_dim),
+                MLPAct(inplace=True),
+            )
+        else:
+            self.pos_fuse_fc = nn.Identity()
+            self.ori_fuse_fc = nn.Identity()
         PosHead = Head.pos_head_dict[pos_type]
         self.pos_head = PosHead(self.feature_dim, **pos_args[pos_type])
         OriHead = Head.ori_head_dict[ori_type]
@@ -257,5 +271,20 @@ class TokenHead(Head):
         assert len(in_channels) == len(head_args["patch_size"]), f"in_channels length {len(in_channels)} != patch_size length {len(head_args['patch_size'])}"
         patch_size = head_args["patch_size"]
         self.feature_dim = sum(in_channels)
-        super().__init__(pos_type, pos_args, ori_type, ori_args)
-        self.fm2vect = nn.ModuleList([TokenFeature(ic, ps, head_args["embedding_mode"], head_args["num_heads"], head_args["num_layers"]) for ic, ps in zip(in_channels, patch_size)])
+        super().__init__(pos_type, pos_args, ori_type, ori_args, False)
+        self.fm2vect = nn.ModuleList([TokenFeature(ic, ps, head_args["embedding_mode"], head_args["num_heads"], head_args["num_layers"], head_args["added_tokens_num"]) for ic, ps in zip(in_channels, patch_size)])
+        if head_args["added_tokens_num"] == 6:
+            self.forward = self.forward_advance
+    
+    def forward_advance(self, features: List[Tensor]):
+        assert len(self.fm2vect) == len(features), f"fm2vect length {len(self.fm2vect)} != features length {len(features)}"
+        features_vect = [fm2vect(fm) for fm2vect, fm in zip(self.fm2vect, features)]
+        r_feature = torch.cat([vect[:, :, 0].flatten(1) for vect in features_vect], dim=1)
+        theta_feature = torch.cat([vect[:, :, 1].flatten(1) for vect in features_vect], dim=1)
+        phi_feature = torch.cat([vect[:, :, 2].flatten(1) for vect in features_vect], dim=1)
+        yaw_feature = torch.cat([vect[:, :, 3].flatten(1) for vect in features_vect], dim=1)
+        pitch_feature = torch.cat([vect[:, :, 4].flatten(1) for vect in features_vect], dim=1)
+        roll_feature = torch.cat([vect[:, :, 5].flatten(1) for vect in features_vect], dim=1)
+        pos_pre_dict = self.pos_head((r_feature, theta_feature, phi_feature))
+        ori_pre_dict = self.ori_head((yaw_feature, pitch_feature, roll_feature))
+        return pos_pre_dict, ori_pre_dict

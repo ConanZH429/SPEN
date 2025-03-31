@@ -8,7 +8,6 @@ class SPARKConfig(Config):
         # config
         self.exp_type = "test"
         self.seed = 9999
-        self.deterministic = False
         self.benchmark = True
         self.debug = False
         self.comet_api = "agcu7oeqU395peWf6NCNqnTa7"
@@ -19,21 +18,22 @@ class SPARKConfig(Config):
         self.cache = True
         self.resize_first = True
         # 1080 1440
-        # self.image_first_size = (1000, 1600)
-        self.image_first_size = (720, 960)
-        # self.image_size = (432, 576)
-        self.image_size = (360, 480)
+        self.image_first_size = (900, 1200)
+        self.image_size = (432, 576)
+        # self.image_size = (360, 480)
 
         # train
         self.device = "cuda"
-        self.epochs = 300
+        self.epochs = 400
         self.lr0 = 0.001
         self.lr_min = 0.000001
         self.warmup_epochs = 5
+        self.beta_cos = True
+        self.beta_epochs = 400
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
-        self.batch_size = 40
+        self.batch_size = 30
         self.num_workers = 20
         self.compile = False
         self.gradient_clip_val = None
@@ -67,19 +67,20 @@ class SPARKConfig(Config):
             "MixPoolHead": {"pool_size": (1, ),
                             "weighted_learnable": False},
             "SPPHead": {"pool_size": ((1, 2), ),
-                        "mode": "max"},
+                        "mode": "mean"},
             "MHAHead": {
                 "patch_size": (None, ),
-                "embedding_mode": "max",
+                "embedding_mode": "mean",
                 "pool_size": (1, ),
-                "pool_mode": "max",
+                "pool_mode": "mean",
                 "num_heads": 8,
             },
             "TokenHead": {
                 "patch_size": (None, ),
-                "embedding_mode": "max",
+                "embedding_mode": "mean",
                 "num_heads": 8,
-                "num_layers": 5,
+                "num_layers": 8,
+                "added_tokens_num": 6
             }
         }
         
@@ -92,8 +93,6 @@ class SPARKConfig(Config):
                 "r_max": 50,
                 "r_stride": 1,
                 "angle_stride": 1,
-                "alpha": 0.0,
-                "neighbor": 0,
                 "device": "cuda",
             }
         }
@@ -105,8 +104,6 @@ class SPARKConfig(Config):
             "Euler": {},
             "DiscreteEuler": {
                 "stride": 1,
-                "alpha": 0.0,
-                "neighbor": 0,
                 "device": "cuda"
             },   
         }
@@ -124,8 +121,6 @@ class SPARKConfig(Config):
             "L1": {"reduction": "mean"},
             "CE": {},
             "KL": {},
-            "JS": {},
-            "WassersteinLoss": {}
         }
         
         ## ori_loss
@@ -144,12 +139,10 @@ class SPARKConfig(Config):
             "L1": {"reduction": "mean"},
             "CE": {},
             "KL": {},
-            "JS": {},
-            "WassersteinLoss": {}
         }
 
-        self.ALPHA = (1, 1)              # score
-        self.BETA = (1, 1)               # loss
+        self.ALPHA = (5, 1)              # score
+        self.BETA = (1, 5)               # loss
 
         # augmentation
         self.ZAxisRotation_p = 0.8
@@ -160,25 +153,25 @@ class SPARKConfig(Config):
 
         self.Perspective_p = 0.0
         self.Perspective_args = {
-            "rotation_p": 0.1,
+            "rotation_p": 1.0,
             "max_angle": 10,
-            "translation_p": 0.1,
-            "max_x": 0.2,
-            "max_y": 0.2,
+            "translation_p": 1.0,
+            "max_x": 0.1,
+            "max_y": 0.1,
             "scale_p": 1.0,
-            "max_scale": 0.2,
+            "max_scale": 0.1,
             "max_t": 5,
         }
 
-        self.CropAndPaste_p = 0.2
+        self.CropAndPaste_p = 0.
 
-        self.CropAndPadSafe_p = 0.2
+        self.CropAndPadSafe_p = 0.
 
-        self.DropBlockSafe_p = 0.2
+        self.DropBlockSafe_p = 0.
         self.DropBlockSafe_args = {
             "drop_num": 7,
         }
 
-        self.AlbumentationAug_p = 0.01
+        self.AlbumentationAug_p = 0.0
 
         self.name = ""

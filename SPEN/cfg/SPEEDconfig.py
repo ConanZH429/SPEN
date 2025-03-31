@@ -26,12 +26,12 @@ class SPEEDConfig(Config):
 
         # train
         self.device = "cuda"
-        self.epochs = 300
+        self.epochs = 400
         self.lr0 = 0.001
         self.lr_min = 0.000001
         self.warmup_epochs = 5
         self.beta_cos = False
-        self.beta_epochs = 200
+        self.beta_epochs = 400
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
@@ -54,7 +54,9 @@ class SPEEDConfig(Config):
         # neck
         self.neck = "TaileNeck"                  # IdentityNeck, ConvNeck, FPNPAN
         self.neck_args = {
-            "TaileNeck": {},
+            "TaileNeck": {
+                "att_type": None
+            },
             "IdentityNeck": {},
             "ConvNeck": {},
             "PAFPN": {"align_channels": 160},
@@ -82,6 +84,7 @@ class SPEEDConfig(Config):
                 "embedding_mode": "mean",
                 "num_heads": 8,
                 "num_layers": 8,
+                "added_tokens_num": 6
             }
         }
         
@@ -122,8 +125,6 @@ class SPEEDConfig(Config):
             "L1": {"reduction": "mean"},
             "CE": {},
             "KL": {},
-            "JS": {},
-            "WassersteinLoss": {}
         }
         
         ## ori_loss
@@ -142,8 +143,6 @@ class SPEEDConfig(Config):
             "L1": {"reduction": "mean"},
             "CE": {},
             "KL": {},
-            "JS": {},
-            "WassersteinLoss": {}
         }
 
         self.ALPHA = (5, 1)              # score
@@ -156,14 +155,14 @@ class SPEEDConfig(Config):
             "max_t": 7,
         }
 
-        self.Perspective_p = 0.5
+        self.Perspective_p = 0.0
         self.Perspective_args = {
-            "rotation_p": 0.2,
+            "rotation_p": 1.0,
             "max_angle": 10,
-            "translation_p": 0.2,
+            "translation_p": 1.0,
             "max_x": 0.1,
             "max_y": 0.1,
-            "scale_p": 0.2,
+            "scale_p": 1.0,
             "max_scale": 0.1,
             "max_t": 5,
         }
@@ -177,6 +176,6 @@ class SPEEDConfig(Config):
             "drop_num": 7,
         }
 
-        self.AlbumentationAug_p = 0.01
+        self.AlbumentationAug_p = 0.1
 
         self.name = ""

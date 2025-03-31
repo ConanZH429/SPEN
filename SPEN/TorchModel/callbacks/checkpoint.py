@@ -40,6 +40,7 @@ class Checkpoint(Callback):
             best_dict = {
                 "ori_error": trainer.metrics_dict["val/ori_error"],
                 "pos_error": trainer.metrics_dict["val/pos_error"],
+                "Et": trainer.metrics_dict["val/Et"],
             }
             trainer.log_dict(best_dict, trainer.now_epoch, prefix="best")
         # Save last model

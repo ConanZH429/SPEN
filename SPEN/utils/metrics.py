@@ -178,16 +178,20 @@ class PosError(Metric):
     def __init__(self):
         super().__init__()
         self.add_state("pos_error", default=torch.tensor(0.0))
+        self.add_state("Et", default=torch.tensor(0.0))
         self.add_state("num_samples", default=torch.tensor(0.0))
     
     def update(self, pos_pre: Tensor, pos_label: Tensor, num_samples: int):
-        self.pos_error += torch.sum( LA.vector_norm(pos_pre - pos_label, dim=1) / LA.vector_norm(pos_label, dim=1) )
+        Et = LA.vector_norm(pos_pre - pos_label, dim=1)
+        Et_norm = Et / LA.vector_norm(pos_label, dim=1)
+        self.Et += torch.sum(Et[Et_norm>=0.002173])
+        self.pos_error += torch.sum( Et_norm[Et_norm>=0.002173] )
         self.num_samples += num_samples
         if torch.isnan(self.pos_error):
             print(pos_pre, pos_label)
     
     def compute(self):
-        return self.pos_error / self.num_samples
+        return self.pos_error / self.num_samples, self.Et / self.num_samples
 
 
 
@@ -207,12 +211,10 @@ class OriError(Metric):
     def update(self, ori_pre: Tensor, ori_label: Tensor, num_samples: int):
         ori_pre_norm = F.normalize(ori_pre, p=2, dim=1)
         ori_label_norm = F.normalize(ori_label, p=2, dim=1)
-        # ori_pre_norm = ori_pre / torch.norm(ori_pre, dim=1, keepdim=True)
-        # ori_label_norm = ori_label / torch.norm(ori_label, dim=1, keepdim=True)
         ori_inner_dot = torch.abs(torch.sum(ori_pre_norm * ori_label_norm, dim=1))
         ori_inner_dot = torch.clamp(ori_inner_dot, max=1.0, min=-1.0)
         ori_error = torch.rad2deg(2 * torch.arccos(ori_inner_dot))
-        self.ori_error += torch.sum(ori_error[ori_error > 0.1532])
+        self.ori_error += torch.sum(ori_error[ori_error > 0.169])
         self.num_samples += num_samples
         if torch.isnan(self.ori_error):
             print(ori_inner_dot)

@@ -3,8 +3,8 @@ import torch
 import os
 
 import torch.autograd.gradcheck
-from SPEN.cfg import SPEEDConfig
-from SPEN.data import get_speed_dataloader
+from SPEN.cfg import SPEEDConfig, SPARKConfig
+from SPEN.data import get_speed_dataloader, get_spark_dataloader
 from SPEN.module import ImageModule
 from SPEN.utils import parse2config
 
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # ----------Logger----------
     comet_logger = CometLogger(
         api_key=config.comet_api,
-        project_name="SPEN300",
+        project_name="SPEEDBest",
         experiment_name=config.name,
         online=not config.offline,
     )
@@ -59,6 +59,7 @@ if __name__ == "__main__":
     model = ImageModule(config=config)
 
     train_dataloader, val_dataloader = get_speed_dataloader(config)
+    # train_dataloader, val_dataloader = get_spark_dataloader(config)
 
     trainer = Trainer(
         model=model,

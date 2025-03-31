@@ -3,7 +3,6 @@ import math
 from torch.optim.lr_scheduler import LRScheduler
 
 from .config import Config
-import random
 
 
 class ReduceWarmupCosinLR(LRScheduler):
@@ -40,7 +39,7 @@ class ReduceWarmupCosinLR(LRScheduler):
         
         values = self.get_lr()
         for param_group, lr in zip(self.optimizer.param_groups, values):
-            param_group['lr'] = lr + random.normalvariate(0, lr*0.01)
+            param_group['lr'] = lr
         
         self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
 

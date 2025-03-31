@@ -28,10 +28,10 @@ class ImageModule(Model):
         self.ori_decoder = get_ori_decoder(config.ori_type, **config.ori_args[config.ori_type])
         if self.config.pos_type == "DiscreteSpher":
             self.discrete_spher2spher = DiscreteSpher2Spher(**config.pos_args[config.pos_type])
-            self.beta_0_list = [self.BETA_func(self.BETA[0], i, 200, 0.0) for i in range(self.config.epochs)]
+            self.beta_0_list = [self.BETA_func(self.BETA[0], i, config.beta_epochs, 0.0) for i in range(self.config.epochs)]
         if self.config.ori_type == "DiscreteEuler":
             self.discrete_euler2euler = DiscreteEuler2Euler(**config.ori_args[config.ori_type])
-            self.beta_1_list = [self.BETA_func(self.BETA[1], i, 200, 0.0) for i in range(self.config.epochs)]
+            self.beta_1_list = [self.BETA_func(self.BETA[1], i, config.beta_epochs, 0.0) for i in range(self.config.epochs)]
 
         self._loss_init(config)
 
@@ -246,13 +246,15 @@ class ImageModule(Model):
                                   ori_decode: Tensor, ori_label: Tensor):
         self.pos_error.update(pos_decode, pos_label, num_samples)
         self.ori_error.update(ori_decode, ori_label, num_samples)
-        self.score.update(self.pos_error.compute(), self.ori_error.compute())
+        self.score.update(self.pos_error.compute()[1], self.ori_error.compute())
     
 
     def _val_log(self, log_online):
         data = {}
+        pos_error = self.pos_error.compute()
         data.update({
-            "pos_error": self.pos_error.compute(),
+            "pos_error": pos_error[0],
+            "Et": pos_error[1],
             "ori_error": self.ori_error.compute(),
             "score": self.score.compute(),
         })

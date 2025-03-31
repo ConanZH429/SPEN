@@ -24,12 +24,16 @@ class IdentityNeck(nn.Module):
 
 
 class TaileNeck(nn.Module):
-    def __init__(self, in_channels: List[int]):
+    def __init__(self, in_channels: List[int], att_type: str):
         super().__init__()
         self.out_channels = in_channels[-1:]
+        if att_type == "SE":
+            self.att = SEModule(channels=in_channels[-1], rd_ratio=1/4)
+        else:
+            self.att = nn.Identity()
 
     def forward(self, x: List[Tensor]):
-        return [x[-1]]
+        return [self.att(x[-1])]
 
 
 class PAFPN(nn.Module):

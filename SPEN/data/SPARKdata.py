@@ -78,7 +78,7 @@ class SPARKDataset(Dataset):
         self.pos_encoder = get_pos_encoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_encoder = get_ori_encoder(config.ori_type, **config.ori_args[config.ori_type])
         if config.pos_type == "DiscreteSpher":
-            self.spher_encoder = get_pos_encoder("pher", **config.pos_args["Spher"])
+            self.spher_encoder = get_pos_encoder("Spher", **config.pos_args["Spher"])
         else:
             self.spher_encoder = None
         if config.ori_type == "DiscreteEuler":
@@ -227,7 +227,7 @@ class SPARKValDataset(SPARKDataset):
 
 def get_spark_dataloader(config: SPARKConfig):
     data_loader = DataLoader if config.debug else MultiEpochsDataLoader
-    data_loader = DataLoader
+    # data_loader = DataLoader
     train_dataset = SPARKTrainDataset(config)
     val_dataset = SPARKValDataset(config)
     train_loader = data_loader(

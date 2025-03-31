@@ -94,15 +94,17 @@ class PerspectiveAug():
         rotation_p = np.random.rand()
         translation_p = np.random.rand()
         scale_p = np.random.rand()
+        augmentation_p = np.random.rand()
 
         # Don't to be crazy
         t = 0
-        l_area = (1-self.max_scale+0.05) * original_area
+        l_area = (1-self.max_scale-0.1) * original_area
         r_area = (1+self.max_scale+0.1) * original_area
         warp_matrix: np.ndarray = np.eye(3, dtype=np.float32)
         while True:
             # Rotation
-            if rotation_p < self.rotation_p:
+            if 0.0 <= augmentation_p < 0.333333:
+            # if rotation_p < self.rotation_p:
                 center = (np.random.uniform(box[0], box[2]), np.random.uniform(box[1], box[3]))
                 angle = np.random.uniform(-self.max_angle, self.max_angle)
                 rotation_matrix = cv.getRotationMatrix2D(center=center,
@@ -111,14 +113,16 @@ class PerspectiveAug():
                 rotation_matrix = np.vstack([rotation_matrix, self._h_vector])
 
             # Scale
-            if scale_p < self.scale_p:
+            elif 0.333333 <= augmentation_p < 0.666667:
+            # if scale_p < self.scale_p:
                 s = np.random.uniform(-self.max_scale, self.max_scale)
                 scale_matrix = np.array([[1+s, 0, 0],
                                          [0, 1+s, 0],
                                          [0, 0, 1]], dtype=np.float32)
 
             # Translation
-            if translation_p < self.translation_p:
+            else:
+            # if translation_p < self.translation_p:
                 tx = np.random.uniform(-self.max_x, self.max_x)
                 ty = np.random.uniform(-self.max_y, self.max_y)
                 translation_matrix = np.array([[1, 0, tx * w],
@@ -213,7 +217,12 @@ class AlbumentationAug():
             p (float): The probability of applying data augmentation.
         """
         self.aug = A.OneOf([
-            A.AdvancedBlur(),
+            A.OneOf([
+                A.MedianBlur(),
+                A.MotionBlur(),
+                A.GaussianBlur(),
+                A.GlassBlur()
+            ]),
             A.ColorJitter(),
             A.GaussNoise()
         ], p=p)

@@ -11,6 +11,8 @@ from timm.models.vision_transformer import Block, Attention
 from timm.layers.squeeze_excite import SEModule
 from timm.layers.cbam import SpatialAttn, CbamModule
 
+from timm.layers.weight_init import trunc_normal_
+
 from typing import Optional, List, Tuple, Union, Literal
 
 
@@ -28,15 +30,14 @@ class DensFuse(nn.Module):
         return feature_fused
 
 
+
 class SSIAFuse(nn.Module):
     def __init__(self, in_channels: List[int]):
         super().__init__()
         # spatial
         self.conv3x3 = ConvNormAct(in_channels[0], 1, 3, stride=1, dilation=1, act_layer=ConvAct)
         self.conv5x5 = ConvNormAct(in_channels[0], 1, 5, stride=1, dilation=1, act_layer=ConvAct)
-        self.conv7x7 = ConvNormAct(in_channels[0], 1, 3, stride=1, dilation=3, act_layer=ConvAct)
-        self.conv9x9 = ConvNormAct(in_channels[0], 1, 5, stride=1, dilation=2, act_layer=ConvAct)
-        self.spatial_weight_conv = ConvNormAct(4, 1, 3, stride=2, apply_act=False, apply_norm=False)
+        self.spatial_weight_conv = ConvNormAct(2, 1, 3, stride=2, apply_act=False, apply_norm=False)
 
         # channel
         self.feature_weight = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
@@ -360,7 +361,8 @@ class TokenFeature(nn.Module):
                  embedding_mode: Literal["max", "mean", "mix", "sppmax", "sppmean", "sppmix"] = "max",
                  num_heads: int = 8,
                  num_layers: int = 5,
-                 single: bool = False):
+                 added_tokens_num: int = 2,
+                 single: bool = False,):
         super().__init__()
         self.in_channels = in_channels
         self.num_heads = num_heads
@@ -373,6 +375,8 @@ class TokenFeature(nn.Module):
                 num_heads=num_heads,
             ) for _ in range(num_layers)
         ])
+
+        self.layer_norm = nn.LayerNorm(in_channels)
         
         if single:
             self.token_embedding = nn.Embedding(1, in_channels)
@@ -380,16 +384,18 @@ class TokenFeature(nn.Module):
             self.add_learnable_token = self.add_single_learnable_token
             self.forward = self.forward_single
         else:
-            self.token_embedding = nn.Embedding(2, in_channels)
-            self.register_buffer("token", torch.tensor([0, 1], dtype=torch.long, requires_grad=False))
+            self.learnable_token_num = added_tokens_num
+            self.token_embedding = nn.Embedding(self.learnable_token_num, in_channels)
+            self.register_buffer("token", torch.tensor([i for i in range(self.learnable_token_num)], dtype=torch.long, requires_grad=False))
         
-        self.position_embedding = nn.Embedding(4000, in_channels)
+        self.position_embedding = nn.Embedding(1000, in_channels)
+        self.weight_init()
     
     def add_learnable_token(self, B:int, patch: Tensor):
         token = self.token.repeat(B, 1)
         pos_ori_token_embedded = self.token_embedding(token)
         token_embedded = torch.cat([pos_ori_token_embedded, patch], dim=1)
-        position_token = torch.arange(0, patch.size(1)+2, device=patch.device)                    # S+2
+        position_token = torch.arange(0, patch.size(1)+self.learnable_token_num, device=patch.device)                    # S+2
         position_embedded = self.position_embedding(position_token)        # S+2, C
         return token_embedded + position_embedded
 
@@ -397,7 +403,7 @@ class TokenFeature(nn.Module):
         token = self.token.expand(B, 1)
         token_embedded = self.token_embedding(token)
         token_embedded = torch.cat([token_embedded, patch], dim=1)
-        position_token = torch.arange(0, patch.size(1)+2, device=patch.device)                    # S+2
+        position_token = torch.arange(0, patch.size(1)+self.learnable_token_num, device=patch.device)                    # S+2
         position_embedded = self.position_embedding(position_token)
         return token_embedded + position_embedded.unsqueeze(dim=0)
 
@@ -406,8 +412,12 @@ class TokenFeature(nn.Module):
         patch = self.patch_embedding(x)       # B, C, H, W -> B, S, C
         patch = self.add_learnable_token(B, patch)
         out = self.blocks(patch)                     # B, 2+S, C -> B, 2+S, C
+        out = self.layer_norm(out)
         out = out.transpose(1, 2)                   # B, 2+S, C -> B, C, 2+S
-        return out[:, :, 0:1], out[:, :, 1:2]                        # B, C, 1
+        if self.learnable_token_num == 6:
+            return out[:, :, :6]
+        else:
+            return out[:, :, 0], out[:, :, 1]
 
     def forward_single(self, x: Tensor):
         B, C, H, W = x.shape
@@ -416,3 +426,14 @@ class TokenFeature(nn.Module):
         out = self.blocks(patch)                     # B, 1+S, C -> B, 1+S, C
         out = out.transpose(1, 2)                   # B, 1+S, C -> B, C, 1+S
         return out[:, :, 0:1]                        # B, C, 1
+    
+    def weight_init(self):
+        trunc_normal_(self.position_embedding.weight, std=.02)
+        nn.init.normal_(self.token_embedding.weight)
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                trunc_normal_(m.weight, std=.02)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif hasattr(m, "init_weights"):
+                m.init_weights()

@@ -26,7 +26,7 @@ class CometLogger(Logger):
         super().__init__()
         ExpConfig = comet_ml.ExperimentConfig(
             parse_args=False,
-            display_summary_level=1,
+            display_summary_level=0,
 
         )
         self.experiment = comet_ml.start(
