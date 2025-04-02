@@ -272,8 +272,8 @@ class TokenHead(Head):
         patch_size = head_args["patch_size"]
         self.feature_dim = sum(in_channels)
         super().__init__(pos_type, pos_args, ori_type, ori_args, False)
-        self.fm2vect = nn.ModuleList([TokenFeature(ic, ps, head_args["embedding_mode"], head_args["num_heads"], head_args["num_layers"], head_args["added_tokens_num"]) for ic, ps in zip(in_channels, patch_size)])
-        if head_args["added_tokens_num"] == 6:
+        self.fm2vect = nn.ModuleList([TokenFeature(ic, ps, head_args["embedding_mode"], head_args["num_heads"], head_args["num_layers"], head_args["learnable_token_num"]) for ic, ps in zip(in_channels, patch_size)])
+        if head_args["learnable_token_num"] == 6:
             self.forward = self.forward_advance
     
     def forward_advance(self, features: List[Tensor]):

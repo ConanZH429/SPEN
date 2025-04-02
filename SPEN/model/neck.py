@@ -23,7 +23,7 @@ class IdentityNeck(nn.Module):
         return x[-3], x[-2], x[-1]
 
 
-class TaileNeck(nn.Module):
+class TailNeck(nn.Module):
     def __init__(self, in_channels: List[int], att_type: str):
         super().__init__()
         self.out_channels = in_channels[-1:]

@@ -358,7 +358,7 @@ class TokenFeature(nn.Module):
                  embedding_mode: Literal["max", "mean", "mix", "sppmax", "sppmean", "sppmix"] = "max",
                  num_heads: int = 8,
                  num_layers: int = 5,
-                 added_tokens_num: int = 2,
+                 learnable_token_num: int = 2,
                  single: bool = False,):
         super().__init__()
         self.in_channels = in_channels
@@ -381,7 +381,7 @@ class TokenFeature(nn.Module):
             self.add_learnable_token = self.add_single_learnable_token
             self.forward = self.forward_single
         else:
-            self.learnable_token_num = added_tokens_num
+            self.learnable_token_num = learnable_token_num
             self.token_embedding = nn.Embedding(self.learnable_token_num, in_channels)
             self.register_buffer("token", torch.tensor([i for i in range(self.learnable_token_num)], dtype=torch.long, requires_grad=False))
         

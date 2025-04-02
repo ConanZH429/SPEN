@@ -15,7 +15,7 @@ class SPEN(nn.Module):
     neck_dict = {
         "IdentityNeck": IdentityNeck,
         "ConvNeck": ConvNeck,
-        "TaileNeck": TaileNeck,
+        "TailNeck": TailNeck,
         "MutiFeatureNeck": MutiFeatureNeck,
         "PAFPN": PAFPN,
         "BiFPN": BiFPN,

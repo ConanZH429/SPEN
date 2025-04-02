@@ -36,7 +36,7 @@ class PerspectiveAug():
     """
     def __init__(self,
                  max_angle: float, rotation_p: float,
-                 max_x: float, max_y: float, translation_p: float,
+                 max_translation: float, translation_p: float,
                  max_scale: float, scale_p: float,
                  Camera,
                  max_t: int = 5,
@@ -46,8 +46,7 @@ class PerspectiveAug():
         Args:
             max_angle (float): The maximum rotation angle.
             rotation_p (float): The probability of rotation.
-            max_x (float): The maximum translation percentage along the x-axis.
-            max_y (float): The maximum translation percentage along the y-axis.
+            max_translation (float): The maximum translation percentage along the x-axis and y-axis.
             translation_p (float): The probability of translation.
             max_scale (float): The maximum scale ratio.
             scale_p (float): The probability of scale.
@@ -56,8 +55,7 @@ class PerspectiveAug():
         """
         self.max_angle = max_angle
         self.rotation_p = rotation_p
-        self.max_x = max_x
-        self.max_y = max_y
+        self.max_translation = max_translation
         self.translation_p = translation_p
         self.max_scale = max_scale
         self.scale_p = scale_p
@@ -123,8 +121,8 @@ class PerspectiveAug():
             # Translation
             else:
             # if translation_p < self.translation_p:
-                tx = np.random.uniform(-self.max_x, self.max_x)
-                ty = np.random.uniform(-self.max_y, self.max_y)
+                tx = np.random.uniform(-self.max_translation, self.max_translation)
+                ty = np.random.uniform(-self.max_translation, self.max_translation)
                 translation_matrix = np.array([[1, 0, tx * w],
                                                [0, 1, ty * h],
                                                [0, 0, 1]], dtype=np.float32)

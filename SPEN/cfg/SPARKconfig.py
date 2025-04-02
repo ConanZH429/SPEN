@@ -50,9 +50,9 @@ class SPARKConfig(Config):
             },
         }
         # neck
-        self.neck = "TaileNeck"                  # IdentityNeck, ConvNeck, FPNPAN
+        self.neck = "TailNeck"                  # IdentityNeck, ConvNeck, FPNPAN
         self.neck_args = {
-            "TaileNeck": {},
+            "TailNeck": {},
             "IdentityNeck": {},
             "ConvNeck": {},
             "PAFPN": {"align_channels": 160},
@@ -80,7 +80,7 @@ class SPARKConfig(Config):
                 "embedding_mode": "mean",
                 "num_heads": 8,
                 "num_layers": 8,
-                "added_tokens_num": 6
+                "learnable_token_num": 6
             }
         }
         

@@ -27,6 +27,7 @@ class SPEEDConfig(Config):
         # train
         self.device = "cuda"
         self.epochs = 400
+        self.batch_size = 50
         self.lr0 = 0.001
         self.lr_min = 0.000001
         self.warmup_epochs = 5
@@ -35,7 +36,6 @@ class SPEEDConfig(Config):
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
-        self.batch_size = 50
         self.num_workers = 20
         self.compile = False
         self.gradient_clip_val = None
@@ -44,17 +44,14 @@ class SPEEDConfig(Config):
         # backbone
         self.backbone = "mobilenetv3_large_100"
         self.backbone_args = {
-            "resnet18": {
-                "bin_folder" : "resnet18.a1_in1k",
-            },
             "mobilenetv3_large_100": {
                 "bin_folder" : "mobilenetv3_large_100.miil_in21k",
             },
         }
         # neck
-        self.neck = "TaileNeck"                  # IdentityNeck, ConvNeck, FPNPAN
+        self.neck = "TailNeck"                  # IdentityNeck, ConvNeck, FPNPAN
         self.neck_args = {
-            "TaileNeck": {
+            "TailNeck": {
                 "att_type": None
             },
             "IdentityNeck": {},
@@ -84,7 +81,7 @@ class SPEEDConfig(Config):
                 "embedding_mode": "mean",
                 "num_heads": 8,
                 "num_layers": 8,
-                "added_tokens_num": 6
+                "learnable_token_num": 6
             }
         }
         
@@ -160,8 +157,7 @@ class SPEEDConfig(Config):
             "rotation_p": 1.0,
             "max_angle": 10,
             "translation_p": 1.0,
-            "max_x": 0.1,
-            "max_y": 0.1,
+            "max_translation": 0.1,
             "scale_p": 1.0,
             "max_scale": 0.1,
             "max_t": 5,
