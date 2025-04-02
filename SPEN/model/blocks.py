@@ -30,7 +30,6 @@ class DensFuse(nn.Module):
         return feature_fused
 
 
-
 class SSIAFuse(nn.Module):
     def __init__(self, in_channels: List[int]):
         super().__init__()
@@ -55,8 +54,6 @@ class SSIAFuse(nn.Module):
         spatial_feature = torch.cat([
             self.conv3x3(shallow_feature),
             self.conv5x5(shallow_feature),
-            self.conv7x7(shallow_feature),
-            self.conv9x9(shallow_feature),
         ], dim=1)
         spatial_weight = F.sigmoid(self.spatial_weight_conv(spatial_feature))  # B, 1, H, W
 
@@ -401,7 +398,7 @@ class TokenFeature(nn.Module):
 
     def add_single_learnable_token(self, B:int, patch: Tensor):
         token = self.token.expand(B, 1)
-        token_embedded = self.token_embedding(token)
+        token_embedded = self.token_embedding(token)                # B, learnable_token, embedding_dim
         token_embedded = torch.cat([token_embedded, patch], dim=1)
         position_token = torch.arange(0, patch.size(1)+self.learnable_token_num, device=patch.device)                    # S+2
         position_embedded = self.position_embedding(position_token)

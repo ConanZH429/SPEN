@@ -36,6 +36,23 @@ class TaileNeck(nn.Module):
         return [self.att(x[-1])]
 
 
+class MutiFeatureNeck(nn.Module):
+    def __init__(self, in_channels: List[int], feature_idx: List[int]):
+        super().__init__()
+        self.feature_idx = feature_idx
+        self.out_channels = [sum([in_channels[i] for i in feature_idx])]
+        self.conv = nn.ModuleList()
+        for i in range(len(feature_idx)):
+            s = -feature_idx[i]-1
+            self.conv.append(ConvNormAct(in_channels[feature_idx[i]], in_channels[feature_idx[i]], 3, stride=2**s, act_layer=ConvAct))
+
+    def forward(self, x: List[Tensor]):
+        x = x[-len(self.feature_idx):]
+        for i in range(len(self.feature_idx)):
+            x[i] = self.conv[i](x[i])
+        x = torch.cat(x, dim=1)
+        return [x]
+
 class PAFPN(nn.Module):
     def __init__(self, in_channels: List[int], align_channels: int = 160):
         super().__init__()

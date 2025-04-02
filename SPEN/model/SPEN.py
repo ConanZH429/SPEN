@@ -16,6 +16,7 @@ class SPEN(nn.Module):
         "IdentityNeck": IdentityNeck,
         "ConvNeck": ConvNeck,
         "TaileNeck": TaileNeck,
+        "MutiFeatureNeck": MutiFeatureNeck,
         "PAFPN": PAFPN,
         "BiFPN": BiFPN,
         "DensAttFPN": DensAttFPN,
@@ -43,9 +44,9 @@ class SPEN(nn.Module):
         backbone_out_channels = self.backbone.feature_info.channels()
         if "mobilenetv3" in model_name:
             self.backbone.blocks.pop(-1)
-            self.backbone._stage_out_idx = (6, 5, 3, 2, 1)
+            self.backbone._stage_out_idx = (6, 5, 4, 3, 2, 1)
             if "large" in model_name:
-                backbone_out_channels[-1] = 160
+                backbone_out_channels = [16, 24, 40, 80, 112, 160]
             else:
                 backbone_out_channels[-1] = 96
         # neck
