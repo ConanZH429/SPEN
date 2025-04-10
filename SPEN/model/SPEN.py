@@ -49,6 +49,8 @@ class SPEN(nn.Module):
                 backbone_out_channels = [16, 24, 40, 80, 112, 160]
             else:
                 backbone_out_channels[-1] = 96
+        # self.backbone.blocks[-2].append(Attention(backbone_out_channels[-2], 4, apply_WMSA=config.WMSA, apply_GMMSA=config.GMMSA))
+        # self.backbone.blocks[-3].append(Attention(backbone_out_channels[-3], 4, apply_WMSA=config.WMSA, apply_GMMSA=config.GMMSA))
         # neck
         Neck = SPEN.neck_dict[config.neck]
         self.neck = Neck(backbone_out_channels, **config.neck_args[config.neck])

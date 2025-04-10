@@ -434,3 +434,131 @@ class TokenFeature(nn.Module):
                     nn.init.zeros_(m.bias)
             elif hasattr(m, "init_weights"):
                 m.init_weights()
+
+
+class WMSA(nn.Module):
+    def __init__(self,
+                 dim: int,
+                 num_heads: int):
+        super().__init__()
+        self.dim = dim
+        self.num_heads = num_heads
+        # self.position_embedding = nn.Embedding(1500, dim)
+        self.block = Block(dim=dim, num_heads=num_heads)
+        self.layer_norm = nn.LayerNorm(dim)
+        self.weight_init()
+    
+    def forward(self, x: Tensor):
+        B, C, H, W = x.shape
+        # x = x.flatten(2).transpose(1, 2) # B, C, H, W -> B, C, S -> B, S, C
+        # position_token = torch.arange(0, x.size(1), device=x.device)   # S
+        # position_embedded = self.position_embedding(position_token)        # S, C
+        # x = x + position_embedded.unsqueeze(dim=0)                         # B, S, C
+        # x = x.transpose(1, 2).reshape(B, C, H, W)       # B, S, C -> B, C, S -> B, C, H, W
+        x = x.view(B, C, 2, H//2, 2, W//2)  # B, C, 2, H/2, 2, W/2
+        x = x.permute(0, 2, 4, 1, 3, 5)  # B, 2, 2, C, H/2, W/2
+        x = x.reshape(B*4, C, H//2, W//2)  # B*4, C, H/2, W/2
+        x = x.flatten(2).transpose(1, 2)   # B*4, C, H/2, W/2 -> B*4, C, S -> B*4, S, C
+        x = self.block(x)
+        x = self.layer_norm(x)
+        x = x.transpose(1, 2).reshape(B, 2, 2, C, H//2, W//2) # B*4, S, C -> B*4, C, S -> B, 2, 2, C, H/2, W/2
+        x = x.permute(0, 3, 1, 4, 2, 5) # B, C, 2, H/2, 2, W/2
+        x = x.reshape(B, C, H, W) # B, C, 2, H/2, 2, W/2 -> B, C, H, W
+        return x
+
+    def weight_init(self):
+        # trunc_normal_(self.position_embedding.weight, std=.02)
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                trunc_normal_(m.weight, std=.02)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif hasattr(m, "init_weights"):
+                m.init_weights()
+
+class GMMSA(nn.Module):
+    def __init__(self,
+                 dim: int,
+                 num_heads: int):
+        super().__init__()
+        self.dim = dim
+        self.num_heads = num_heads
+        # self.position_embedding = nn.Embedding(2000, dim)
+        self.block = Block(dim=dim, num_heads=num_heads)
+        self.layer_norm = nn.LayerNorm(dim)
+        self.weight_init()
+    
+    def forward(self, x: Tensor):
+        B, C, H, W = x.shape
+        # x = x.flatten(2).transpose(1, 2) # B, C, H, W -> B, C, S -> B, S, C
+        # position_token = torch.arange(0, x.size(1), device=x.device)   # S
+        # position_embedded = self.position_embedding(position_token)        # S, C
+        # x = x + position_embedded.unsqueeze(dim=0)                         # B, S, C
+        # x = x.transpose(1, 2).reshape(B, C, H, W)       # B, S, C -> B, C, S -> B, C, H, W
+        x = torch.cat([
+            x[:, :, 0:H:2, 0:W:2],
+            x[:, :, 0:H:2, 1:W:2],
+            x[:, :, 1:H:2, 0:W:2],
+            x[:, :, 1:H:2, 1:W:2],
+        ], dim=0)   # B*4, C, H/2, W/2
+        x = x.flatten(2).transpose(1, 2)   # B*4, C, H/2, W/2 -> B*4, C, S -> B*4, S, C
+        x = self.block(x)
+        x = self.layer_norm(x)
+        x = x.transpose(1, 2).reshape(B, 4, C, H//2, W//2) # B*4, S, C -> B*4, C, S -> B, 4, C, H/2, W/2
+        h1 = x[:, 0]
+        h2 = x[:, 1]
+        h3 = x[:, 2]
+        h4 = x[:, 3]
+        v1 = torch.cat([h1, h2], dim=3)
+        v1 = v1.reshape(B, C, H//2, 2, W//2)
+        v1 = v1.transpose(3, 4)
+        v1 = v1.reshape(B, C, H//2, W)
+        v2 = torch.cat([h3, h4], dim=3)
+        v2 = v2.reshape(B, C, H//2, 2, W//2)
+        v2 = v2.transpose(3, 4)
+        v2 = v2.reshape(B, C, H//2, W)
+        v = torch.cat([v1, v2], dim=2)
+        v = v.reshape(B, C, 2, H//2, W)
+        v = v.transpose(2, 3)
+        v = v.reshape(B, C, H, W) # B, C, 2, H/2, 2, W/2 -> B, C, H, W
+        return v
+
+    def weight_init(self):
+        # trunc_normal_(self.position_embedding.weight, std=.02)
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                trunc_normal_(m.weight, std=.02)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif hasattr(m, "init_weights"):
+                m.init_weights()
+
+
+class Attention(nn.Module):
+    def __init__(self,
+                 dim: int,
+                 num_heads: int,
+                 apply_WMSA: bool = False,
+                 apply_GMMSA: bool = False):
+        super().__init__()
+        self.dim = dim
+        self.num_heads = num_heads
+        if apply_WMSA:
+            self.wmsa = WMSA(dim, num_heads)
+        else:
+            self.wmsa = nn.Identity()
+        if apply_GMMSA:
+            self.gmmsa = GMMSA(dim, num_heads)
+        else:
+            self.gmmsa = nn.Identity()
+    
+    def forward(self, x: Tensor):
+        B, C, H, W = x.shape
+        if H % 2 != 0:
+            H += 1
+        if W % 2 != 0:
+            W += 1
+        x = F.interpolate(x, size=(H, W), mode='bilinear', align_corners=True)
+        x = self.wmsa(x)
+        x = self.gmmsa(x)
+        return x

@@ -7,7 +7,7 @@ class SPEEDConfig(Config):
         super().__init__()
         # config
         self.exp_type = "test"
-        self.seed = 9999
+        self.seed = 3721
         self.benchmark = True
         self.debug = False
         self.comet_api = "agcu7oeqU395peWf6NCNqnTa7"
@@ -15,9 +15,9 @@ class SPEEDConfig(Config):
 
         # dataset
         self.dataset_folder = Path("../datasets/speed")
-        self.train_ratio = 0.90
-        self.val_ratio = 0.10
-        self.cache = False
+        self.train_ratio = 0.85
+        self.val_ratio = 0.15
+        self.cache = True
         self.resize_first = True
         self.image_first_size = (1000, 1600)
         # self.image_first_size = (800, 1280)
@@ -48,6 +48,8 @@ class SPEEDConfig(Config):
                 "bin_folder" : "mobilenetv3_large_100.miil_in21k",
             },
         }
+        self.WMSA = False
+        self.GMMSA = False
         # neck
         self.neck = "TailNeck"                  # IdentityNeck, ConvNeck, FPNPAN
         self.neck_args = {
@@ -155,11 +157,11 @@ class SPEEDConfig(Config):
         self.Perspective_p = 0.0
         self.Perspective_args = {
             "rotation_p": 1.0,
-            "max_angle": 10,
+            "max_angle": 20,
             "translation_p": 1.0,
-            "max_translation": 0.1,
+            "max_translation": 0.2,
             "scale_p": 1.0,
-            "max_scale": 0.1,
+            "max_scale": 0.2,
             "max_t": 5,
         }
 

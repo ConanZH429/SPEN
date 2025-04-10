@@ -10,7 +10,7 @@ from SPEN.utils import parse2config
 
 from SPEN.TorchModel import Trainer
 from SPEN.TorchModel.logger import CometLogger
-from SPEN.TorchModel.callbacks import Checkpoint, LRMonitor, ModelSummary
+from SPEN.TorchModel.callbacks import Checkpoint, LRMonitor, ModelSummary, Compile
 
 from lightning.pytorch import seed_everything
 from pathlib import Path
@@ -46,11 +46,13 @@ if __name__ == "__main__":
     )
     lr_monitor = LRMonitor()
     model_summary = ModelSummary(input_size=(1, 1, *config.image_size), depth=4)
-    callbacks = [checkpoint, lr_monitor, model_summary]
+    # ----------Compile----------
+    compile = Compile(mode="reduce-overhead", fullgraph=True)
+    callbacks = [checkpoint, model_summary, lr_monitor, compile]
     # ----------Logger----------
     comet_logger = CometLogger(
         api_key=config.comet_api,
-        project_name="SPEEDBest",
+        project_name="paper2",
         experiment_name=config.name,
         online=not config.offline,
     )
@@ -58,7 +60,7 @@ if __name__ == "__main__":
     # ==========Model==========
     model = ImageModule(config=config)
 
-    train_dataloader, val_dataloader = get_speed_dataloader(config)
+    train_dataloader, val_dataloader, test_dataloader = get_speed_dataloader(config)
     # train_dataloader, val_dataloader = get_spark_dataloader(config)
 
     trainer = Trainer(
@@ -71,3 +73,6 @@ if __name__ == "__main__":
     )
 
     trainer.fit(train_dataloader, val_dataloader)
+
+    # test
+    trainer.test(test_dataloader, weight_path=trainer.callbacks[0].best_path)

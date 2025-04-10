@@ -281,7 +281,7 @@ class SPEEDTrainDataset(SPEEDDataset):
         image_tensor = self.image2tensor(image)
         
         label = {
-            "image_name": self.image_list[index],
+            "image_name": int(self.image_list[index].split(".")[0][3:]),
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
             "box": box.astype(np.int32),
@@ -315,7 +315,36 @@ class SPEEDValDataset(SPEEDDataset):
         image_tensor = self.image2tensor(image)
 
         label = {
-            "image_name": self.image_list[index],
+            "image_name": int(self.image_list[index].split(".")[0][3:]),
+            "pos": pos.astype(np.float32),
+            "ori": ori.astype(np.float32),
+            "box": box.astype(np.int32),
+        }
+        # encode the position
+        label["pos_encode"] = self.pos_encoder.encode(pos)
+        # encode the orientation
+        label["ori_encode"] = self.ori_encoder.encode(ori)
+
+        return image_tensor, image, label
+
+
+class SPEEDTestDataset(SPEEDDataset):
+    """
+    The dataset class for SPEED val set.
+    """
+    def __init__(self, config: SPEEDConfig):
+        config.cache = False
+        super().__init__(config, "val")
+    
+    def __getitem__(self, index):
+        image = self._get_image(self.image_list[index])
+        pos, ori, box = self._get_label(self.image_list[index])
+
+        # transform the image to tensor
+        image_tensor = self.image2tensor(image)
+
+        label = {
+            "image_name": int(self.image_list[index].split(".")[0][3:]),
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
             "box": box.astype(np.int32),
@@ -333,6 +362,7 @@ def get_speed_dataloader(config: SPEEDConfig = SPEEDConfig()):
     # data_loader = DataLoader
     train_dataset = SPEEDTrainDataset(config)
     val_dataset = SPEEDValDataset(config)
+    test_dataset = SPEEDTestDataset(config)
     train_loader = data_loader(
         train_dataset,
         batch_size=config.batch_size,
@@ -353,4 +383,14 @@ def get_speed_dataloader(config: SPEEDConfig = SPEEDConfig()):
         pin_memory_device="cuda",
         prefetch_factor=4
     )
-    return train_loader, val_loader
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=config.num_workers,
+        persistent_workers=True,
+        pin_memory=True,
+        pin_memory_device="cuda",
+        prefetch_factor=4
+    )
+    return train_loader, val_loader, test_loader

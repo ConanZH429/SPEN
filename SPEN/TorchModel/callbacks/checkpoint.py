@@ -53,6 +53,7 @@ class Checkpoint(Callback):
             best_path = self.dirpath / self.filename
             new_name = best_path.with_name(f"{self.filename.stem}-{self.best_epoch}.{self.filename.suffix}")
             best_path = best_path.rename(new_name)
+            self.best_path = best_path
             trainer.logger.log_file(str(best_path))      # log best
             rich.print(f"Best model is at {new_name}")
             rich.print(self.best_str)

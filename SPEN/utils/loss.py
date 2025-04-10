@@ -3,7 +3,7 @@ from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 
-# @torch.compile
+@torch.compile
 class CrossEntropyLoss(nn.Module):
     def __init__(self, **kwargs):
         super(CrossEntropyLoss, self).__init__()
@@ -11,7 +11,7 @@ class CrossEntropyLoss(nn.Module):
     def forward(self, pre: Tensor, label: Tensor):
         return F.cross_entropy(pre, label)
 
-
+@torch.compile
 class KLLoss(nn.Module):
     def __init__(self, **kwargs):
         super(KLLoss, self).__init__()

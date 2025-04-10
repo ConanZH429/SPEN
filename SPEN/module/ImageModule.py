@@ -2,8 +2,10 @@ import rich
 import rich.table
 import torch
 import math
+import pickle
 from torch import Tensor
 from pathlib import Path
+from collections import OrderedDict
 
 from ..TorchModel import Model
 
@@ -32,6 +34,8 @@ class ImageModule(Model):
         if self.config.ori_type == "DiscreteEuler":
             self.discrete_euler2euler = DiscreteEuler2Euler(**config.ori_args[config.ori_type])
             self.beta_1_list = [self.BETA_func(self.BETA[1], i, config.beta_epochs, 0.0) for i in range(self.config.epochs)]
+
+        self.test_result_dict = {}
 
         self._loss_init(config)
 
@@ -102,13 +106,13 @@ class ImageModule(Model):
         # datasetsplit
         father_folder = Path(".").resolve().parent
         dataset_folder = father_folder / "datasets" / "speed"
-        self.trainer.logger.log_code(dataset_folder / "train.txt")
-        self.trainer.logger.log_code(dataset_folder / "val.txt")
-        self.trainer.logger.log_code(dataset_folder / "train_label.json")
-        self.trainer.logger.log_code(dataset_folder / "val_label.json")
+        self.trainer.logger.log_file(str(dataset_folder / "train.txt"))
+        self.trainer.logger.log_file(str(dataset_folder / "val.txt"))
+        self.trainer.logger.log_file(str(dataset_folder / "train_label.json"))
+        self.trainer.logger.log_file(str(dataset_folder / "val_label.json"))
         # compile
-        if self.config.compile:
-            self.model = torch.compile(self.model, mode="reduce-overhead", fullgraph=True)
+        # if self.config.compile:
+        #     self.model = torch.compile(self.model, mode="reduce-overhead", fullgraph=True)
 
 
     def forward(self, x):
@@ -151,7 +155,7 @@ class ImageModule(Model):
     def on_train_epoch_end(self):
         self._train_log(log_online=True)
         self._train_metrics_reset()
-    
+
     
     def val_step(self, index, batch):
         images, _, labels = batch
@@ -169,6 +173,47 @@ class ImageModule(Model):
     def on_val_epoch_end(self):
         self._val_log(log_online=True)
         self._val_metrics_reset()
+    
+
+    def on_test_start(self):
+        # pth_new = OrderedDict()
+        # for k, v in pth.items():
+        #     k = k.replace("_orig_mod.", "")
+        #     pth_new[k] = v
+        self.test_result_dict = {}
+
+    def test_step(self, index, batch):
+        images, _, labels = batch
+        num_samples = images.size(0)
+        pos_pre_dict, ori_pre_dict = self.forward(images)
+        # metrics
+        pos_decode = self.pos_decoder.decode_batch(pos_pre_dict)
+        ori_decode = self.ori_decoder.decode_batch(ori_pre_dict)
+        result = {
+            "image_name": labels["image_name"],
+            "pos": labels["pos"].cpu().numpy(),
+            "ori": labels["ori"].cpu().numpy(),
+            "pos_encode": {k: v.cpu().numpy() for k, v in labels["pos_encode"].items()},
+            "ori_encode": {k: v.cpu().numpy() for k, v in labels["ori_encode"].items()},
+            "pos_pre_dict": {k: v.cpu().numpy() for k, v in pos_pre_dict.items()},
+            "ori_pre_dict": {k: v.cpu().numpy() for k, v in ori_pre_dict.items()},
+            "pos_decode": pos_decode.cpu().numpy(),
+            "ori_decode": ori_decode.cpu().numpy(),
+        }
+        self.test_result_dict[index] = result
+        self._update_test_metrics(num_samples,
+                                 pos_decode, labels["pos"],
+                                 ori_decode, labels["ori"])
+        self._test_log(log_online=True)
+    
+
+    def on_test_end(self):
+        pickle_path = Path(self.trainer.callbacks[0].dirpath) / "result.pkl"
+        with open(pickle_path, "wb") as f:
+            pickle.dump(self.test_result_dict, f)
+        self.trainer.logger.log_file(str(pickle_path))
+        self._test_log(log_online=True)
+        self._test_metrics_reset()
 
 
     def _loss_init(self, config):
@@ -266,6 +311,34 @@ class ImageModule(Model):
     
 
     def _val_metrics_reset(self):
+        self.pos_error.reset()
+        self.ori_error.reset()
+        self.score.reset()
+    
+
+    def _update_test_metrics(self, num_samples: int,
+                                   pos_decode: Tensor, pos_label: Tensor,
+                                   ori_decode: Tensor, ori_label: Tensor):
+        self.pos_error.update(pos_decode, pos_label, num_samples)
+        self.ori_error.update(ori_decode, ori_label, num_samples)
+        self.score.update(self.pos_error.compute()[1], self.ori_error.compute())
+    
+    def _test_log(self, log_online):
+        data = {}
+        pos_error = self.pos_error.compute()
+        data.update({
+            "pos_error": pos_error[0],
+            "Et": pos_error[1],
+            "ori_error": self.ori_error.compute(),
+            "score": self.score.compute(),
+        })
+        self.log_dict(data=data,
+                      epoch=self.trainer.now_epoch,
+                      on_bar=True,
+                      prefix="test",
+                      log_online=log_online)
+    
+    def _test_metrics_reset(self):
         self.pos_error.reset()
         self.ori_error.reset()
         self.score.reset()

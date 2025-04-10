@@ -147,6 +147,48 @@ class Trainer:
             batch_loop.set_postfix(self.postfix_dict)
         
         self.on_val_epoch_end()
+    
+
+    def test(self, test_loader, weight_path = None):
+        """
+        Test the model on the given data
+        
+        Args:
+            test_loader: The test data loader
+        """
+        device_type = '🐌' if 'cpu' in self.device else ('⚡️' if 'cuda' in self.device else '🚀')
+        rich.print(f"<<<<<<<< Testing on {self.device} {device_type} >>>>>>>>")
+
+        self.weight_path = weight_path
+        self.test_loader = test_loader
+
+        # load
+        if self.weight_path:
+            pth = torch.load(self.weight_path, map_location=self.device, weights_only=True)
+            self.model.load_state_dict(pth, strict=True)
+
+        self.on_test_start()
+
+        self.test_loop()
+
+        self.on_test_end()
+    
+    
+    def test_loop(self):
+        loop = tqdm(self.test_loader,
+                    desc="Test",)
+        self.postfix_dict = {}
+
+        self.model.eval()
+        index = 0
+        for batch in loop:
+            batch = self.to_device(batch)
+            index += 1
+            with self.autocast:
+                with torch.no_grad():
+                    self.model.test_step(index, batch)
+    
+            loop.set_postfix(self.postfix_dict)
 
 
     def on_fit_start(self):
@@ -171,6 +213,14 @@ class Trainer:
     def on_fit_epoch_end(self):
         [cb.on_fit_epoch_end(trainer=self) for cb in self.callbacks]
         self.model.on_fit_epoch_end()
+    
+    def on_test_start(self):
+        [cb.on_test_start(trainer=self) for cb in self.callbacks]
+        self.model.on_test_start()
+
+    def on_test_end(self):
+        [cb.on_test_end(trainer=self) for cb in self.callbacks]
+        self.model.on_test_end()
     
     
     def to_device(self, data):

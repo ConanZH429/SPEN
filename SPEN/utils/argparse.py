@@ -29,6 +29,8 @@ def parse2config(config):
     # backbone
     parser.add_argument("--backbone", "-b", type=str, default=config.backbone, help="Backbone",
                         choices=list(config.backbone_args.keys()))
+    parser.add_argument("--WMSA", action="store_true", help="Weighted Multi-head Self-Attention")
+    parser.add_argument("--GMMSA", action="store_true", help="Global Multi-head Self-Attention")
     # neck
     parser.add_argument("--neck", "-n", type=str, default=config.neck, help="Neck",
                         choices=list(config.neck_args.keys()))
@@ -36,7 +38,7 @@ def parse2config(config):
     parser.add_argument("--att_type", type=str, default=None, help="Attention type",
                         choices=["SSIA", "SE", "SAM", "CBAM"])
     # head
-    parser.add_argument("--head", "-h", type=str, default=config.head, help="Head",
+    parser.add_argument("--head", type=str, default=config.head, help="Head",
                         choices=list(config.head_args.keys()))
     parser.add_argument("--pool_size", type=int, nargs="+", default=(1, ), help="Pool size")
     parser.add_argument("--weighted_learnable", action="store_true", help="Weighted learnable", default=False)
@@ -99,6 +101,8 @@ def parse2config(config):
     config.gradient_clip_val = args.gradient_clip_val
     # backbone
     config.backbone = args.backbone
+    config.WMSA = args.WMSA
+    config.GMMSA = args.GMMSA
     # neck
     config.neck = args.neck
     if config.neck in {"PAFPN", "BiFPN"}:

@@ -24,6 +24,9 @@ class Model(torch.nn.Module):
     
     def on_fit_epoch_end(self):
         """Called at the end of each fit epoch"""
+
+    def on_test_start(self):
+        """Called at the beginning of the test method"""
     
     def log_dict(self,
                  data: dict,
