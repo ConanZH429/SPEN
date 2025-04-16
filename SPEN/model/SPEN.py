@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .head import *
 from .neck import *
-from ..cfg import SPEEDConfig, SPARKConfig
+from ..cfg import SPEEDConfig, SPARKConfig, SPEEDplusConfig
 
 from typing import Union
 
@@ -30,25 +30,22 @@ class SPEN(nn.Module):
         "TokenHead": TokenHead
     }
 
-    def __init__(self, config: Union[SPEEDConfig, SPARKConfig]):
+    def __init__(self, config: Union[SPEEDConfig, SPARKConfig, SPEEDplusConfig]):
         super().__init__()
         # backbone
         model_name = config.backbone
         bin_folder = config.backbone_args[config.backbone]["bin_folder"]
         bin_path = Path(f"./SPEN/model/timm_weight/{bin_folder}/pytorch_model.bin")
         self.backbone = timm.create_model(model_name,
-                                          pretrained=True,
+                                          pretrained=config.pretrained,
                                           pretrained_cfg_overlay=dict(file=str(bin_path)),
                                           in_chans=1,
                                           features_only=True)
         backbone_out_channels = self.backbone.feature_info.channels()
+        backbone_out_channels = config.backbone_args[config.backbone]["out_channels"]
         if "mobilenetv3" in model_name:
             self.backbone.blocks.pop(-1)
             self.backbone._stage_out_idx = (6, 5, 4, 3, 2, 1)
-            if "large" in model_name:
-                backbone_out_channels = [16, 24, 40, 80, 112, 160]
-            else:
-                backbone_out_channels[-1] = 96
         # self.backbone.blocks[-2].append(Attention(backbone_out_channels[-2], 4, apply_WMSA=config.WMSA, apply_GMMSA=config.GMMSA))
         # self.backbone.blocks[-3].append(Attention(backbone_out_channels[-3], 4, apply_WMSA=config.WMSA, apply_GMMSA=config.GMMSA))
         # neck

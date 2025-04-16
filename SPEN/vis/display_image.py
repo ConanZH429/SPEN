@@ -5,10 +5,10 @@ import cv2 as cv
 from scipy.spatial.transform import Rotation as R
 from typing import Union, Optional
 
-from ..utils import SPEEDCamera, SPARKCamera
-from ..cfg import SPEEDConfig, SPARKConfig
+from ..utils import SPEEDCamera, SPARKCamera, SPEEDplusCamera
+from ..cfg import SPEEDConfig, SPARKConfig, SPEEDplusConfig
 from .utils import show_image
-from .read_data import read_speed_data, read_spark_data
+from .read_data import read_speed_data, read_spark_data, read_speedplus_data
 
 def draw_axis(image: np.ndarray, pos: np.ndarray, ori: np.ndarray, alpha: float = 1.0, show: bool = False, camera: Union[SPEEDCamera, SPARKCamera] = None) -> np.ndarray:
     """
@@ -81,7 +81,7 @@ def draw_world_points(image: np.ndarray, points: np.ndarray, pos: np.ndarray, or
     Display the points on the image.
 
     Args:
-        points (np.ndarray): The points to display.
+        points (np.ndarray): The points to display.  Shape: (N, 3).
         pos (np.ndarray): The position of the axis.
         ori (np.ndarray): The orientation of the axis.
         Camera (Union[SPEEDCamera, SPARKCamera]): The camera to project the point.
@@ -99,18 +99,19 @@ def draw_world_points(image: np.ndarray, points: np.ndarray, pos: np.ndarray, or
     points_image = Camera.K_image @ points_cam
     points_image = points_image.T
     for point_image in points_image:
-        image = cv.circle(image, tuple(point_image[:-1].astype(int)), 7, color, -1)
+        image = cv.circle(image, tuple(point_image[:-1].astype(int)), 20, color, -1)
     if show:
         show_image(image)
     return image
 
 def display_image(image_name: Optional[str] = None,
+                  image_type: Optional[str] = None,
                   image: Optional[np.ndarray] = None,
                   display_label_axis: bool = True,
                   display_pre_axis: bool = False,
                   display_box: bool = False,
                   display_point: bool = False,
-                  point: Optional[np.ndarray] = None,
+                  points: Optional[np.ndarray] = None,
                   dataset_type: str = "SPEED",
                   save_path: Optional[str] = None,
                   pos: Optional[np.ndarray] = None,
@@ -140,10 +141,18 @@ def display_image(image_name: Optional[str] = None,
     elif dataset_type == "SPARK":
         config = SPARKConfig()
         image_to_show, pos_label, ori_label, box_label = read_spark_data(image_name, config=config)
+    elif dataset_type == "SPEED+":
+        config = SPEEDplusConfig()
+        image_to_show, pos_label, ori_label, box_label = read_speedplus_data(image_name, image_type, config=config)
     else:
         raise ValueError("Invalid dataset!")
     image_to_show = image_to_show if image is None else image
-    Camera = SPEEDCamera(image_to_show.shape) if dataset_type == "SPEED" else SPARKCamera(image_to_show.shape)
+    if dataset_type == "SPEED":
+        Camera = SPEEDCamera(image_to_show.shape)
+    elif dataset_type == "SPARK":
+        Camera = SPARKCamera(image_to_show.shape)
+    elif dataset_type == "SPEED+":
+        Camera = SPEEDplusCamera(image_to_show.shape)
     if len(image_to_show.shape) == 2:
         image_to_show = cv.cvtColor(image_to_show, cv.COLOR_GRAY2BGR)
     pos_label = pos_label if pos is None else pos
@@ -155,8 +164,8 @@ def display_image(image_name: Optional[str] = None,
         pass
     if display_box:
         image_to_show = draw_box(image_to_show, box_label)
-    if display_point and point is not None:
-        image_to_show = draw_world_points(image_to_show, point, pos_label, ori_label, Camera)
+    if display_point and points is not None:
+        image_to_show = draw_world_points(image_to_show, points, pos_label, ori_label, Camera)
     if save_path:
         cv.imwrite(save_path, image_to_show)
     show_image(image_to_show)

@@ -30,10 +30,10 @@ class ImageModule(Model):
         self.ori_decoder = get_ori_decoder(config.ori_type, **config.ori_args[config.ori_type])
         if self.config.pos_type == "DiscreteSpher":
             self.discrete_spher2spher = DiscreteSpher2Spher(**config.pos_args[config.pos_type])
-            self.beta_0_list = [self.BETA_func(self.BETA[0], i, config.beta_epochs, 0.0) for i in range(self.config.epochs)]
+        self.beta_0_list = [self.BETA_func(self.BETA[0], i, config.beta_epochs, 0.0) for i in range(self.config.epochs)]
         if self.config.ori_type == "DiscreteEuler":
             self.discrete_euler2euler = DiscreteEuler2Euler(**config.ori_args[config.ori_type])
-            self.beta_1_list = [self.BETA_func(self.BETA[1], i, config.beta_epochs, 0.0) for i in range(self.config.epochs)]
+        self.beta_1_list = [self.BETA_func(self.BETA[1], i, config.beta_epochs, 0.0) for i in range(self.config.epochs)]
 
         self.test_result_dict = {}
 

@@ -230,6 +230,8 @@ class Trainer:
             return [self.to_device(d) for d in data]
         elif isinstance(data, dict):
             return {k: self.to_device(v) for k, v in data.items()}
+        else:
+            return data
     
     
     def log_dict(self,

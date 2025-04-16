@@ -1,5 +1,6 @@
 /result/
 /.cometml-runs/
+/.ipynb_checkpoints/
 
 /__pycache__/
 *.pyc

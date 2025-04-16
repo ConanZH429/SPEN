@@ -12,5 +12,5 @@ class Compile(Callback):
     
     def on_fit_start(self, trainer):
         trainer.model.model = torch.compile(trainer.model.model,
-                                      mode=self.mode,
-                                      fullgraph=self.fullgraph)
+                                            mode=self.mode,
+                                            fullgraph=self.fullgraph)

@@ -7,6 +7,8 @@ def parse2config(config):
     
     # exp_type
     parser.add_argument("--exp_type", type=str, required=True, help="Experiment type")
+    # seed
+    parser.add_argument("--seed", type=int, default=config.seed, help="Random seed")
     # dataset
     if isinstance(config, SPEEDConfig):
         parser.add_argument("--train_ratio", type=float, default=config.train_ratio, help="Train ratio")
@@ -80,6 +82,8 @@ def parse2config(config):
 
     # exp_type
     config.exp_type = args.exp_type
+    # seed
+    config.seed = args.seed
     # dataset
     if isinstance(config, SPEEDConfig):
         config.train_ratio = args.train_ratio

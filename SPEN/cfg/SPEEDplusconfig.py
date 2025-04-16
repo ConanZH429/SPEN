@@ -2,7 +2,7 @@ from pathlib import Path
 
 from ..TorchModel import Config
 
-class SPEEDConfig(Config):
+class SPEEDplusConfig(Config):
     def __init__(self):
         super().__init__()
         # config
@@ -14,12 +14,10 @@ class SPEEDConfig(Config):
         self.offline = False
 
         # dataset
-        self.dataset_folder = Path("../datasets/speed")
-        self.train_ratio = 0.85
-        self.val_ratio = 0.15
+        self.dataset_folder = Path("../speedplusv2")
         self.cache = True
-        self.resize_first = True
-        self.image_first_size = (1000, 1600)
+        self.resize_first = False
+        self.image_first_size = (1200, 1920)
         # self.image_first_size = (800, 1280)
         # self.image_size = (480, 768)
         self.image_size = (400, 640)
@@ -43,6 +41,7 @@ class SPEEDConfig(Config):
         # model
         # backbone
         self.backbone = "mobilenetv3_large_100"
+        self.pretrained = True
         self.backbone_args = {
             "mobilenetv3_small_075": {
                 "bin_folder": "mobilenetv3_small_075.lamb_in1k",
@@ -65,8 +64,6 @@ class SPEEDConfig(Config):
                 "out_channels": [24, 40, 64, 120, 168, 240]
             }
         }
-        self.WMSA = False
-        self.GMMSA = False
         # neck
         self.neck = "TailNeck"                  # IdentityNeck, ConvNeck, FPNPAN
         self.neck_args = {
@@ -174,11 +171,11 @@ class SPEEDConfig(Config):
         self.Perspective_p = 0.0
         self.Perspective_args = {
             "rotation_p": 1.0,
-            "max_angle": 20,
+            "max_angle": 10,
             "translation_p": 1.0,
-            "max_translation": 0.2,
+            "max_translation": 0.1,
             "scale_p": 1.0,
-            "max_scale": 0.2,
+            "max_scale": 0.1,
             "max_t": 5,
         }
 

@@ -1,4 +1,4 @@
-from .Camera import SPEEDCamera, SPARKCamera
+from .Camera import SPEEDCamera, SPARKCamera, SPEEDplusCamera
 from .loss import PosLossFunc, OriLossFunc
 from .metrics import PosLoss, OriLoss, Loss, PosError, OriError, Score
 from .bar import CustomRichProgressBar, CustomTQDMProgressBar
