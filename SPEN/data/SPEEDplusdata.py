@@ -1,9 +1,11 @@
 import json
 import torch
+import sys
 
 import cv2 as cv
 import numpy as np
 import albumentations as A
+
 
 from threading import Thread
 from tqdm import tqdm
@@ -21,17 +23,19 @@ from typing import List, Dict, Tuple
 
 
 class ImageReader(Thread):
-    def __init__(self, image_name: List, mode: str, image_size: Tuple[int, int], dataset_folder: Path):
+    def __init__(self, start: int, self_image_numpy, image_name: List, mode: str, image_size: Tuple[int, int], dataset_folder: Path):
         Thread.__init__(self)
+        self.start_index = start
         self.mode = mode
         self.image_size = image_size
         self.dataset_folder = dataset_folder
         self.image_name =  image_name
-        self.image_dict: dict = {}
+        self.image_numpy = self_image_numpy
     
     def run(self):
         flag = self.mode == "val"
-        for image_name in tqdm(self.image_name):
+        image_list = []
+        for (i, image_name) in tqdm(enumerate(self.image_name)):
             if flag:
                 domain = image_name.split("_")[0]
                 image_real_name = image_name.split("_")[1]
@@ -40,10 +44,10 @@ class ImageReader(Thread):
                 image = cv.imread(str(self.dataset_folder / "synthetic" / "images" / image_name), cv.IMREAD_GRAYSCALE)
             if self.image_size is not None:
                 image = cv.resize(image, (self.image_size[1], self.image_size[0]), interpolation=cv.INTER_LINEAR)
-            self.image_dict[image_name] = image
+            self.image_numpy[self.start_index+i, :, :] = image
     
-    def get_result(self) -> dict:
-        return self.image_dict
+    def get_result(self) -> List:
+        return self.image_numpy
 
 
 
@@ -59,12 +63,12 @@ class SPEEDplusDataset(Dataset):
         self.image_size = config.image_size
         self.resize_first = config.resize_first
         self.image_first_size = config.image_first_size
-        self.Camera = SPEEDplusCamera(config.image_size) if not self.resize_first else SPEEDplusCamera(config.image_first_size)
+        self.Camera = SPEEDplusCamera(config.image_first_size) if self.resize_first else SPEEDplusCamera((1200, 1920))
         # transform the image to tensor
         self.image2tensor = v2.Compose([
             v2.ToImage(),
             v2.Resize(self.image_size, interpolation=InterpolationMode.BILINEAR),
-            v2.ToDtype(torch.float32, scale=True)
+            v2.ToDtype(torch.float32, scale=True),
         ])
         # load the labels
         self.label = {}
@@ -98,9 +102,12 @@ class SPEEDplusDataset(Dataset):
                 self.label[k]["bbox"] = self.label[k]["bbox"].astype(np.int32)
         # cache the image data
         if self.cache:
-            self.image_dict = {}
+            if self.resize_first:
+                self.image_numpy = np.zeros((len(self.image_list), self.image_first_size[0], self.image_first_size[1]), dtype=np.uint8)
+            else:
+                self.image_numpy = np.zeros((len(self.image_list), self.image_size[0], self.image_size[1]), dtype=np.uint8)
             self._cache_image_multithread(self.image_list)
-            print(f"Load {len(self.image_dict)} {mode} images ({self.image_dict[self.image_list[0]].shape}) successfully.")
+            print(f"Load {self.image_numpy.shape[0]} {mode} images ({self.image_numpy[0].shape}) successfully.")
         self.pos_encoder = get_pos_encoder(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_encoder = get_ori_encoder(config.ori_type, **config.ori_args[config.ori_type])
         if config.pos_type == "DiscreteSpher":
@@ -119,7 +126,7 @@ class SPEEDplusDataset(Dataset):
     def __getitem__(self, index: int):
         raise NotImplementedError("Subclass of SPEEDDataset should implement __getitem__ method.")
 
-    def _get_image(self, image_name: str) -> np.ndarray:
+    def _get_image(self, index: int, image_name: str) -> np.ndarray:
         """
         Get the image data from the the image dict if cache is True,
         otherwise load the image from the disk.
@@ -131,7 +138,7 @@ class SPEEDplusDataset(Dataset):
             np.ndarray: The image data.
         """
         if self.cache:
-            return self.image_dict[image_name]
+            return self.image_numpy[index]
         else:
             if self.mode == "val":
                 domain = image_name.split("_")[0]
@@ -165,19 +172,20 @@ class SPEEDplusDataset(Dataset):
     def _cache_image_multithread(self, image_list: List[str]):
         image_divided = self.divide_data(image_list, 10)
         threads = []
+        image_numpy_list = []
+        start = 0
         if self.resize_first:
-            for sub_image_name in image_divided:
-                threads.append(ImageReader(sub_image_name, self.mode, self.image_first_size, self.dataset_folder))
+            for (i, sub_image_name) in enumerate(image_divided):
+                threads.append(ImageReader(start, self.image_numpy, sub_image_name, self.mode, self.image_first_size, self.dataset_folder))
+                start += len(sub_image_name)
         else:
-            for sub_image_name in image_divided:
-                threads.append(ImageReader(sub_image_name, self.mode, None, self.dataset_folder))
+            for (i, sub_image_name) in enumerate(image_divided):
+                threads.append(ImageReader(start, self.image_numpy, sub_image_name, self.mode, None, self.dataset_folder))
+                start += len(sub_image_name)
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
-        for thread in threads:
-            self.image_dict.update(thread.get_result())
-        
 
 
 class SPEEDplusTrainDataset(SPEEDplusDataset):
@@ -196,7 +204,7 @@ class SPEEDplusTrainDataset(SPEEDplusDataset):
         self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p)
 
     def __getitem__(self, index):
-        image = self._get_image(self.image_list[index])
+        image = self._get_image(index, self.image_list[index])
         pos, ori, box = self._get_label(self.image_list[index])
         
         # data augmentation
@@ -205,7 +213,7 @@ class SPEEDplusTrainDataset(SPEEDplusDataset):
         image = self.drop_block_safe(image, box)
         image, pos, ori, box = self.z_axis_rotation(image, pos, ori, box)
         image, pos, ori, box = self.perspective_aug(image, pos, ori, box)
-        image = self.albumentation_aug(image)
+        image = self.albumentation_aug(image, box)
 
         # transform the image to tensor
         image_tensor = self.image2tensor(image)
@@ -238,7 +246,7 @@ class SPEEDplusValDataset(SPEEDplusDataset):
         super().__init__(config, "val")
     
     def __getitem__(self, index):
-        image = self._get_image(self.image_list[index])
+        image = self._get_image(index, self.image_list[index])
         pos, ori, box = self._get_label(self.image_list[index])
 
         # transform the image to tensor
@@ -266,7 +274,7 @@ class SPEEDplusTestDataset(SPEEDplusDataset):
         super().__init__(config, "val")
     
     def __getitem__(self, index):
-        image = self._get_image(self.image_list[index])
+        image = self._get_image(index, self.image_list[index])
         pos, ori, box = self._get_label(self.image_list[index])
 
         # transform the image to tensor
@@ -310,7 +318,6 @@ def get_speedplus_dataloader(config: SPEEDplusConfig):
         pin_memory=True,
         pin_memory_device="cuda",
         prefetch_factor=4,
-        drop_last=True
     )
     test_loader = DataLoader(
         test_dataset,

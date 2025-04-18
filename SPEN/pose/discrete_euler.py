@@ -1,4 +1,6 @@
 import torch
+import numba
+import math
 from torch import Tensor
 import torch.nn.functional as F
 
@@ -36,6 +38,25 @@ class DiscreteEuler():
         self.roll_index_dict = {int(roll // stride): i for i, roll in enumerate(self.roll_range)}
 
 
+@numba.njit
+def quat2euler(q):
+    rad2pi = 180 / math.pi
+    q0, q1, q2, q3 = q
+    q1_2 = q1**2
+    q2_2 = q2**2
+    q3_2 = q3**2
+    yaw = math.atan2(
+        2*(q0*q2 + q1*q3),
+        1 - 2*(q2_2+q1_2)
+    ) * rad2pi
+    pitch = math.asin(2*(q0*q1 - q2*q3)) * rad2pi
+    roll = math.atan2(
+        2*(q0*q3 + q1*q2),
+        1 - 2*(q1_2+q3_2)
+    ) * rad2pi
+    return yaw, pitch, roll
+
+
 class DiscreteEulerEncoder(DiscreteEuler):
     def __init__(self, stride: int, device: str = "cuda"):
         """
@@ -67,8 +88,9 @@ class DiscreteEulerEncoder(DiscreteEuler):
         Returns:
             encode (dict[str, np.ndarray]): the probability distribution of yaw, pitch, and roll
         """
-        rotation = R.from_quat(ori, scalar_first=True)
-        yaw, pitch, roll = rotation.as_euler("YXZ", degrees=True)
+        # rotation = R.from_quat(ori, scalar_first=True)
+        # yaw, pitch, roll = rotation.as_euler("YXZ", degrees=True)
+        yaw, pitch, roll = quat2euler(ori)
         
         yaw_encode = self._encode_ori(yaw, self.yaw_len, self.yaw_index_dict)
         pitch_encode = self._encode_ori(pitch, self.pitch_len, self.pitch_index_dict)

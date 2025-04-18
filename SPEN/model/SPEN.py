@@ -46,6 +46,8 @@ class SPEN(nn.Module):
         if "mobilenetv3" in model_name:
             self.backbone.blocks.pop(-1)
             self.backbone._stage_out_idx = (6, 5, 4, 3, 2, 1)
+        elif "resnet" in model_name:
+            self.backbone._stage_out_idx = (5, 4, 3, 2, 1)
         # self.backbone.blocks[-2].append(Attention(backbone_out_channels[-2], 4, apply_WMSA=config.WMSA, apply_GMMSA=config.GMMSA))
         # self.backbone.blocks[-3].append(Attention(backbone_out_channels[-3], 4, apply_WMSA=config.WMSA, apply_GMMSA=config.GMMSA))
         # neck

@@ -1,11 +1,14 @@
 import cv2 as cv
 import numpy as np
 import albumentations as A
+import random
+import math
 
 from scipy.spatial.transform import Rotation as R
 from typing import Union, Tuple, List, Optional
 from pathlib import Path
 from ..utils import SPEEDCamera
+from .sunflare import sun_flare
 # from albumentations.augmentations.geometric.functional import perspective_bboxes
 
 def warp_box(box, M, width, height):
@@ -170,16 +173,16 @@ class ZAxisRotation():
         self.p = p
     
     def __call__(self, image: np.ndarray, pos: np.ndarray, ori: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        if np.random.rand() > self.p:
+        if random.random() > self.p:
             return image, pos, ori, box
 
         h, w = image.shape[:2]
         original_area = (box[2] - box[0]) * (box[3] - box[1])
 
         t = 0
-        r_area = 0.7 * original_area
+        r_area = 0.9 * original_area
         while True:
-            angle = np.random.uniform(-self.max_angle, self.max_angle)
+            angle = random.uniform(-self.max_angle, self.max_angle)
 
             rotation = R.from_euler("YXZ", [0, 0, angle], degrees=True)
             rotation_matrix = rotation.as_matrix()
@@ -214,18 +217,26 @@ class AlbumentationAug():
         Args:
             p (float): The probability of applying data augmentation.
         """
-        self.aug = A.OneOf([
+        self.p = p
+        self.brightconstrast = A.RandomBrightnessContrast(
+            brightness_limit=(-0.2, 0.2),
+            contrast_limit=(-0.2, 0.2),
+            p=p
+        )
+        self.aug = A.Compose([
             A.OneOf([
-                A.MedianBlur(),
-                A.MotionBlur(),
-                A.GaussianBlur(),
-                A.GlassBlur()
-            ]),
-            A.ColorJitter(),
-            A.GaussNoise()
-        ], p=p)
+                A.MotionBlur(blur_limit=(3, 9)),
+                A.MedianBlur(blur_limit=(3, 7)),
+                A.GaussianBlur()
+            ], p=p),
+            A.GaussNoise(
+                std_range=(0.05, 0.2),
+                mean_range=(0.0, 0.1),
+                p=p
+            )
+        ], p=1)
     
-    def __call__(self, image: np.ndarray) -> np.ndarray:
+    def __call__(self, image: np.ndarray, box: np.ndarray) -> np.ndarray:
         """
         Apply data augmentation to the image.
 
@@ -235,7 +246,34 @@ class AlbumentationAug():
         Returns:
             np.ndarray: The augmented image.
         """
-        return self.aug(image=image)["image"]
+        image = self.brightconstrast(image=image)["image"]
+        if random.random() <= self.p:
+            image = sun_flare(
+                image=image,
+                flare_center=(
+                    random.randint(box[0], box[2]),
+                    random.randint(box[1], box[3]),
+                ),
+                src_radius=random.randint(350, 700),
+                src_color=random.randint(230, 255),
+                angle_range=(0, 1),
+                num_circles=random.randint(5, 10),
+            )
+        image = self.aug(image=image)["image"]
+        if random.random() > self.p:
+            return image
+        image = sun_flare(
+            image=image,
+            flare_center=(
+                random.randint(box[0], box[2]),
+                random.randint(box[1], box[3]),
+            ),
+            src_radius=random.randint(500, 800),
+            src_color=random.randint(230, 255),
+            angle_range=(0, 1),
+            num_circles=random.randint(5, 10),
+        )
+        return image
 
 
 class DropBlockSafe():

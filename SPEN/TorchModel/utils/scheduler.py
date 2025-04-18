@@ -93,7 +93,6 @@ def get_scheduler(sheduler_type: str, optimizer: torch.optim.Optimizer, config: 
         lambda0 = lambda cur_iter: lambda_min + (lambda_max-lambda_min) * cur_iter / (warmup_epoch-1) if cur_iter < warmup_epoch \
             else lambda_min + (lambda_max-lambda_min)*(1 + math.cos(math.pi * (cur_iter - warmup_epoch) / (max_epoch - warmup_epoch - 1))) / 2
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda0)
-        return scheduler
     elif sheduler_type == "OnPlateau":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                                mode="min",
@@ -112,7 +111,15 @@ def get_scheduler(sheduler_type: str, optimizer: torch.optim.Optimizer, config: 
                                         lr_min=lr_min,
                                         factor=3/4,
                                         threshold=0.01,
-                                        patience=15)
-        return scheduler
+                                        patience=5)
+    elif sheduler_type == "MultiStepLR":
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer,
+            milestones=[10, 15],
+            gamma=0.1,
+            last_epoch=-1,
+        )
     else:
         raise ValueError(f"Invalid scheduler type: {sheduler_type}")
+    
+    return scheduler

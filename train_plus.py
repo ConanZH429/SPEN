@@ -47,8 +47,11 @@ if __name__ == "__main__":
     lr_monitor = LRMonitor()
     model_summary = ModelSummary(input_size=(1, 1, *config.image_size), depth=4)
     # ----------Compile----------
-    compile = Compile(mode="reduce-overhead", fullgraph=True)
-    callbacks = [checkpoint, model_summary, lr_monitor, compile]
+    if config.compile:
+        compile = Compile(mode="reduce-overhead", fullgraph=True)
+        callbacks = [checkpoint, model_summary, lr_monitor, compile]
+    else:
+        callbacks = [checkpoint, model_summary, lr_monitor]
     # ----------Logger----------
     comet_logger = CometLogger(
         api_key=config.comet_api,

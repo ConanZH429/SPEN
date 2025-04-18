@@ -16,11 +16,12 @@ class SPEEDplusConfig(Config):
         # dataset
         self.dataset_folder = Path("../speedplusv2")
         self.cache = True
-        self.resize_first = False
-        self.image_first_size = (1200, 1920)
+        self.resize_first = True
+        self.image_first_size = (1000, 1600)
+        self.image_first_size = (900, 1440)
         # self.image_first_size = (800, 1280)
-        # self.image_size = (480, 768)
-        self.image_size = (400, 640)
+        self.image_size = (480, 768)
+        # self.image_size = (400, 640)
 
         # train
         self.device = "cuda"
@@ -33,7 +34,7 @@ class SPEEDplusConfig(Config):
         self.beta_epochs = 400
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
-        self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin
+        self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin, MultiStepLR
         self.num_workers = 20
         self.compile = False
         self.gradient_clip_val = None
@@ -62,6 +63,10 @@ class SPEEDplusConfig(Config):
             "mobilenetv3_large_150d": {
                 "bin_folder": "mobilenetv3_large_150d.ra4_e3600_r256_in1k",
                 "out_channels": [24, 40, 64, 120, 168, 240]
+            },
+            "resnet34d": {
+                "bin_folder": "resnet34d.ra2_in1k",
+                "out_channels": [64, 64, 128, 256, 512]
             }
         }
         # neck
@@ -162,7 +167,7 @@ class SPEEDplusConfig(Config):
         self.BETA = (1, 5)               # loss
 
         # augmentation
-        self.ZAxisRotation_p = 0.8
+        self.ZAxisRotation_p = 0.0
         self.ZAxisRotation_args = {
             "max_angle": 180,
             "max_t": 7,
@@ -179,15 +184,15 @@ class SPEEDplusConfig(Config):
             "max_t": 5,
         }
 
-        self.CropAndPaste_p = 0.2
+        self.CropAndPaste_p = 0.0
 
-        self.CropAndPadSafe_p = 0.2
+        self.CropAndPadSafe_p = 0.0
 
-        self.DropBlockSafe_p = 0.2
+        self.DropBlockSafe_p = 0.0
         self.DropBlockSafe_args = {
-            "drop_num": 7,
+            "drop_num": 5,
         }
 
-        self.AlbumentationAug_p = 0.1
+        self.AlbumentationAug_p = 0.5
 
         self.name = ""
