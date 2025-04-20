@@ -35,14 +35,14 @@ class SPEEDplusConfig(Config):
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
         self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin, MultiStepLR
-        self.num_workers = 20
+        self.num_workers = 30
         self.compile = False
         self.gradient_clip_val = None
 
         # model
         # backbone
-        self.backbone = "mobilenetv3_large_100"
         self.pretrained = True
+        self.backbone = "mobilenetv3_large_100"
         self.backbone_args = {
             "mobilenetv3_small_075": {
                 "bin_folder": "mobilenetv3_small_075.lamb_in1k",
@@ -64,9 +64,13 @@ class SPEEDplusConfig(Config):
                 "bin_folder": "mobilenetv3_large_150d.ra4_e3600_r256_in1k",
                 "out_channels": [24, 40, 64, 120, 168, 240]
             },
-            "resnet34d": {
-                "bin_folder": "resnet34d.ra2_in1k",
+            "resnet34": {
+                "bin_folder": "resnet34.a1_in1k",
                 "out_channels": [64, 64, 128, 256, 512]
+            },
+            "efficientnet_b3": {
+                "bin_folder": "efficientnet_b3.ra2_in1k",
+                "out_channels": [24, 32, 48, 136, 384]
             }
         }
         # neck
@@ -126,6 +130,8 @@ class SPEEDplusConfig(Config):
             "Euler": {},
             "DiscreteEuler": {
                 "stride": 1,
+                "alpha": 0.0,
+                "neighbor": 0,
                 "device": "cuda"
             },   
         }
@@ -167,7 +173,7 @@ class SPEEDplusConfig(Config):
         self.BETA = (1, 5)               # loss
 
         # augmentation
-        self.ZAxisRotation_p = 0.0
+        self.ZAxisRotation_p = 0.8
         self.ZAxisRotation_args = {
             "max_angle": 180,
             "max_t": 7,
@@ -184,15 +190,17 @@ class SPEEDplusConfig(Config):
             "max_t": 5,
         }
 
-        self.CropAndPaste_p = 0.0
+        self.CropAndPaste_p = 0.2
 
-        self.CropAndPadSafe_p = 0.0
+        self.CropAndPadSafe_p = 0.2
 
-        self.DropBlockSafe_p = 0.0
+        self.DropBlockSafe_p = 0.2
         self.DropBlockSafe_args = {
             "drop_num": 5,
         }
 
-        self.AlbumentationAug_p = 0.5
+        self.AlbumentationAug_p = 0.01
+
+        self.SunFlare_p = 0.0
 
         self.name = ""

@@ -161,31 +161,35 @@ class BiFPN(nn.Module):
         p5_0 = self.align_p5(x[-1])
 
         # weights for P5_0 and P4_0 to P4_1
-        p4_w1 = F.relu(self.p4_w1)
-        weight = p4_w1 / (torch.sum(p4_w1) + self.eps)
+        # p4_w1 = F.relu(self.p4_w1)
+        # weight = p4_w1 / (torch.sum(p4_w1) + self.eps)
+        weight = F.softmax(self.p4_w1, dim=0)
         p4_1 = self.conv4_up(
-            weight[0] * p4_0 + weight[1] * F.interpolate(p5_0, size=p4_0.shape[-2:], mode="nearest")
+            weight[0] * p4_0 + weight[1] * F.interpolate(p5_0, size=p4_0.shape[-2:], mode="bilinear")
         )
 
         # weights for P4_1 and P3_0 to P3_2
-        p3_w2 = F.relu(self.p3_w2)
-        weight = p3_w2 / (torch.sum(p3_w2) + self.eps)
+        # p3_w2 = F.relu(self.p3_w2)
+        # weight = p3_w2 / (torch.sum(p3_w2) + self.eps)
+        weight = F.softmax(self.p3_w2, dim=0)
         p3_2 = self.conv3_up(
-            weight[0] * p3_0 + weight[1] * F.interpolate(p4_1, size=p3_0.shape[-2:], mode="nearest")
+            weight[0] * p3_0 + weight[1] * F.interpolate(p4_1, size=p3_0.shape[-2:], mode="bilinear")
         )
         
         # weights for P4_0, P4_1 and P3_0 to P4_2
-        p4_w2 = F.relu(self.p4_w2)
-        weight = p4_w2 / (torch.sum(p4_w2) + self.eps)
+        # p4_w2 = F.relu(self.p4_w2)
+        # weight = p4_w2 / (torch.sum(p4_w2) + self.eps)
+        weight = F.softmax(self.p4_w2, dim=0)
         p4_2 = self.conv4_down(
-            weight[0] * p4_0 + weight[1] * p4_1 + weight[2] * F.max_pool2d(p3_2, kernel_size=2, stride=2)
+            weight[0] * p4_0 + weight[1] * p4_1 + weight[2] * F.max_pool2d(F.interpolate(p3_2, size=(p4_1.shape[-2]*2, p4_1.shape[-1]*2), mode="bilinear"), kernel_size=2, stride=2)
         )
 
         # weights for P5_0 and P4_2 to P5_2
-        p5_w2 = F.relu(self.p5_w2)
-        weight = p5_w2 / (torch.sum(p5_w2) + self.eps)
+        # p5_w2 = F.relu(self.p5_w2)
+        # weight = p5_w2 / (torch.sum(p5_w2) + self.eps)
+        weight = F.softmax(self.p5_w2, dim=0)
         p5_2 = self.conv5_down(
-            weight[0] * p5_0 + weight[1] * F.max_pool2d(F.pad(p4_2, (0, 0, 1, 1)), kernel_size=2, stride=2)
+            weight[0] * p5_0 + weight[1] * F.max_pool2d(F.interpolate(p4_2, size=(p5_0.shape[-2]*2, p5_0.shape[-1]*2), mode="bilinear"), kernel_size=2, stride=2)
         )
 
         return p3_2, p4_2, p5_2

@@ -78,11 +78,11 @@ class EulerHead(nn.Module):
 
 
 class DiscreteEulerHead(nn.Module):
-    def __init__(self, in_channels: int, stride: float, **kwargs):
+    def __init__(self, in_channels: int, stride: int, neighbor: int, **kwargs):
         super().__init__()
-        yaw_dim = int(360 // stride + 1)
-        pitch_dim = int(180 // stride + 1)
-        roll_dim = int(360 // stride + 1)
+        yaw_dim = 360 // stride + 1 + 2 * neighbor
+        pitch_dim = 180 // stride + 1 + 2 * neighbor
+        roll_dim = 360 // stride + 1 + 2 * neighbor
         self.yaw_fc = nn.Linear(in_channels, yaw_dim)
         self.pitch_fc = nn.Linear(in_channels, pitch_dim)
         self.roll_fc = nn.Linear(in_channels, roll_dim)

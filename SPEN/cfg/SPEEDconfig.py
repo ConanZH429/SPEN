@@ -42,6 +42,7 @@ class SPEEDConfig(Config):
 
         # model
         # backbone
+        self.pretrained = True
         self.backbone = "mobilenetv3_large_100"
         self.backbone_args = {
             "mobilenetv3_small_075": {
@@ -63,6 +64,14 @@ class SPEEDConfig(Config):
             "mobilenetv3_large_150d": {
                 "bin_folder": "mobilenetv3_large_150d.ra4_e3600_r256_in1k",
                 "out_channels": [24, 40, 64, 120, 168, 240]
+            },
+            "resnet34": {
+                "bin_folder": "resnet34.a1_in1k",
+                "out_channels": [64, 64, 128, 256, 512]
+            },
+            "efficientnet_b3": {
+                "bin_folder": "efficientnet_b3.ra2_in1k",
+                "out_channels": [24, 32, 48, 136, 384]
             }
         }
         self.WMSA = False
@@ -124,6 +133,8 @@ class SPEEDConfig(Config):
             "Euler": {},
             "DiscreteEuler": {
                 "stride": 1,
+                "alpha": 0.0,
+                "neighbor": 0,
                 "device": "cuda"
             },   
         }

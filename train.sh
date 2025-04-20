@@ -1,5 +1,38 @@
 #!/bin/bash
 
+# 3.3.4(1) 位姿表示方法及损失函数实验结果
+# 对比Quat的损失函数
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot Quat -olt Cos --ALPHA 5 1 --BETA 1 1
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot Quat -olt CosDistance --ALPHA 5 1 --BETA 1 1
+# 对比Cart的损失函数
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L2 -ot Quat -olt Cos --ALPHA 5 1 --BETA 1 1
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt SmoothL1 -ot Quat -olt Cos --ALPHA 5 1 --BETA 1 1
+# 对比Euler的损失函数
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot Euler -olt L1 --ALPHA 5 1 --BETA 1 1
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot Euler -olt L2 --ALPHA 5 1 --BETA 1 1
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot Euler -olt SmoothL1 --ALPHA 5 1 --BETA 1 1
+# 对比Discrete
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.0 --neighbor 0 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+
+# beta系数 暂时弃用
+# python3 train.py --exp_type beta-ratio --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.0 --neighbor 0 -olt CE --ALPHA 5 1 --BETA 1 3 0 0
+# python3 train.py --exp_type beta-ratio --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.0 --neighbor 0 -olt CE --ALPHA 5 1 --BETA 1 5 0 0
+# python3 train.py --exp_type beta-ratio --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.0 --neighbor 0 -olt CE --ALPHA 5 1 --BETA 1 7 0 0
+
+
+# 3.3.4(2) 概率分布平滑实验结果
+# alpha=0.1 n=2 4 6
+python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 4 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 6 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+# alpha=0.01 0.2 n=2
+python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.01 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.2 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.3 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+
+
+
+
 # test
 # python3 train.py --exp_type test --epochs 300 --batch_size 50 --num_workers 15 --backbone mobilenetv4_conv_small --neck TailNeck --pos_type Cart --pos_loss_type L1 --ori_type Quat --ori_loss_type Cos --ALPHA 0 1 --BETA 0 1
 # python3 train.py --exp_type best_test --epochs 300 --batch_size 50 --num_workers 15 --backbone mobilenetv4_conv_medium --neck DensAttFPN --att_type SSIA --pos_type DiscreteSpher --pos_loss_type CE --ori_type DiscreteEuler --ori_loss_type CE --avg_size 4 2 1 --ALPHA 1 5 --BETA 1 5
@@ -134,10 +167,10 @@
 # python3 train.py --exp_type Ab_pose --cache --compile --img_size 480 768 --epochs 400 --batch_size 30 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L2 -ot Quat -olt CosDistance --ALPHA 5 1 --BETA 1 5 1 5
 
 # backbone
-ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
-python3 train.py --exp_type Ab_backbone --cache --compile --img_size 600 960 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_small_100 -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
-ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
-python3 train.py --exp_type Ab_backbone --cache --compile --img_size 600 960 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_large_075 -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
-ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
-python3 train.py --exp_type Ab_backbone --cache --compile --img_size 480 768 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_large_150d -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
-ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
+# ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
+# python3 train.py --exp_type Ab_backbone --cache --compile --img_size 600 960 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_large_100 -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
+# ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
+# python3 train.py --exp_type Ab_backbone --cache --compile --img_size 600 960 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_large_075 -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
+# ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
+# python3 train.py --exp_type Ab_backbone --cache --compile --img_size 480 768 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_large_150d -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
+# ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9

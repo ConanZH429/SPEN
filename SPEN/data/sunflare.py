@@ -66,13 +66,43 @@ def add_sun_flare_overlay(img: np.ndarray,
     point = [int(x) for x in flare_center]
 
     overlay = output.copy()
-    num_times = src_radius // 15
+    num_times = src_radius // 10
 
     # max_alpha is calculated using weighted_brightness and total_radii_length times 5
     # meaning the higher the alpha with larger area, the brighter the bright spot will be
     # for list of alphas in range [0.05, 0.2], the max_alpha should below 1
     max_alpha = weighted_brightness / total_radius_length * 5
     alpha = np.linspace(0.0, min(max_alpha, 1.0), num=num_times)
+
+    rad = np.linspace(1, src_radius, num=num_times)
+
+    for i in range(num_times):
+        cv.circle(overlay, point, int(rad[i]), src_color, -1)
+        alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
+        output = add_weighted(overlay, alp, output, 1 - alp)
+        
+    return output
+
+
+def add_sun_flare_overlayv2(img: np.ndarray,
+                          flare_center: tuple[int, int],
+                          src_radius: int,
+                          src_color: int):
+    overlay = img.copy()
+    output = img.copy()
+
+    weighted_brightness = 0.0
+    total_radius_length = 0.0
+
+    point = [int(x) for x in flare_center]
+
+    overlay = output.copy()
+    num_times = src_radius // 10
+
+    # max_alpha is calculated using weighted_brightness and total_radii_length times 5
+    # meaning the higher the alpha with larger area, the brighter the bright spot will be
+    # for list of alphas in range [0.05, 0.2], the max_alpha should below 1
+    alpha = np.linspace(0.0, 1.0, num=num_times)
 
     rad = np.linspace(1, src_radius, num=num_times)
 
@@ -91,20 +121,26 @@ def sun_flare(image: np.ndarray,
               angle_range: tuple[float, float] = (0, 1),
               num_circles: int = 10,):
     height, width = image.shape[:2]
-    circles = get_circles(
-        num_circles=num_circles,
-        flare_center_x=flare_center[0],
-        flare_center_y=flare_center[1],
-        height=height,
-        width=width,
-        angle_range=angle_range,
-        src_color=src_color
-    )
-    image = add_sun_flare_overlay(
+    # circles = get_circles(
+    #     num_circles=num_circles,
+    #     flare_center_x=flare_center[0],
+    #     flare_center_y=flare_center[1],
+    #     height=height,
+    #     width=width,
+    #     angle_range=angle_range,
+    #     src_color=src_color
+    # )
+    # image = add_sun_flare_overlay(
+    #     img=image,
+    #     flare_center=flare_center,
+    #     src_radius=src_radius,
+    #     src_color=src_color,
+    #     circles=circles
+    # )
+    image = add_sun_flare_overlayv2(
         img=image,
         flare_center=flare_center,
         src_radius=src_radius,
-        src_color=src_color,
-        circles=circles
+        src_color=src_color
     )
     return image

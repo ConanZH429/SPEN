@@ -263,7 +263,7 @@ class SPEEDTrainDataset(SPEEDDataset):
         self.persepctive_aug = PerspectiveAug(p=config.Perspective_p,
                                               Camera=self.Camera,
                                               **config.Perspective_args)
-        self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p)
+        self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p, sunflare_p=0.0)
 
     def __getitem__(self, index):
         image = self._get_image(self.image_list[index])
@@ -275,7 +275,7 @@ class SPEEDTrainDataset(SPEEDDataset):
         image = self.drop_block_safe(image, box)
         image, pos, ori, box = self.z_axis_rotation(image, pos, ori, box)
         image, pos, ori, box = self.persepctive_aug(image, pos, ori, box)
-        image = self.albumentation_aug(image)
+        image = self.albumentation_aug(image, box)
 
         # transform the image to tensor
         image_tensor = self.image2tensor(image)

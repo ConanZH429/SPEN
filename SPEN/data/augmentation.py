@@ -210,7 +210,7 @@ class AlbumentationAug():
     """
     Data augmentation using albumentations.
     """
-    def __init__(self, p: float):
+    def __init__(self, p: float, sunflare_p: float = 0.5):
         """
         Initialize the AlbumentationAug class.
 
@@ -218,12 +218,13 @@ class AlbumentationAug():
             p (float): The probability of applying data augmentation.
         """
         self.p = p
-        self.brightconstrast = A.RandomBrightnessContrast(
-            brightness_limit=(-0.2, 0.2),
-            contrast_limit=(-0.2, 0.2),
-            p=p
-        )
+        self.sunflare_p = sunflare_p
         self.aug = A.Compose([
+            A.RandomBrightnessContrast(
+                brightness_limit=(-0.2, 0.2),
+                contrast_limit=(-0.2, 0.2),
+                p=p
+            ),
             A.OneOf([
                 A.MotionBlur(blur_limit=(3, 9)),
                 A.MedianBlur(blur_limit=(3, 7)),
@@ -246,8 +247,8 @@ class AlbumentationAug():
         Returns:
             np.ndarray: The augmented image.
         """
-        image = self.brightconstrast(image=image)["image"]
-        if random.random() <= self.p:
+        image = self.aug(image=image)["image"]
+        if random.random() < self.sunflare_p:
             image = sun_flare(
                 image=image,
                 flare_center=(
@@ -259,20 +260,6 @@ class AlbumentationAug():
                 angle_range=(0, 1),
                 num_circles=random.randint(5, 10),
             )
-        image = self.aug(image=image)["image"]
-        if random.random() > self.p:
-            return image
-        image = sun_flare(
-            image=image,
-            flare_center=(
-                random.randint(box[0], box[2]),
-                random.randint(box[1], box[3]),
-            ),
-            src_radius=random.randint(500, 800),
-            src_color=random.randint(230, 255),
-            angle_range=(0, 1),
-            num_circles=random.randint(5, 10),
-        )
         return image
 
 

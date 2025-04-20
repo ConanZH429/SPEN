@@ -58,6 +58,8 @@ def parse2config(config):
     parser.add_argument("--ori_type", "-ot", type=str, default=config.ori_type, help="Orientation type",
                         choices=list(config.ori_args.keys()))
     parser.add_argument("--euler_stride", "-es", type=int, default=config.ori_args["DiscreteEuler"]["stride"], help="stride")
+    parser.add_argument("--alpha", type=float, default=config.ori_args["DiscreteEuler"]["alpha"], help="alpha")
+    parser.add_argument("--neighbor", type=int, default=config.ori_args["DiscreteEuler"]["neighbor"], help="neighbor")
     parser.add_argument("--ori_loss_type", "-olt", type=str, default=config.ori_loss_type, help="Orientation loss type",
                         choices=list(config.ori_loss_args.keys()))
     # score

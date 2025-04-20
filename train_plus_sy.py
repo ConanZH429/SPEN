@@ -3,8 +3,8 @@ import torch
 import os
 
 import torch.autograd.gradcheck
-from SPEN.cfg import SPEEDConfig, SPARKConfig
-from SPEN.data import get_speed_dataloader, get_spark_dataloader
+from SPEN.cfg import SPEEDplusConfig
+from SPEN.data import get_speedplussy_dataloader
 from SPEN.module import ImageModule
 from SPEN.utils import parse2config
 
@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 if __name__ == "__main__":
-    config = SPEEDConfig()
+    config = SPEEDplusConfig()
     config = parse2config(config)
     os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
 
@@ -40,15 +40,18 @@ if __name__ == "__main__":
     # ----------Callbacks----------
     checkpoint = Checkpoint(
         dirpath=str(dirpath),
-        filename="Degree",
+        filename="best",
         monitor="val/score",
         monitor_mode="min"
     )
     lr_monitor = LRMonitor()
     model_summary = ModelSummary(input_size=(1, 1, *config.image_size), depth=4)
     # ----------Compile----------
-    compile = Compile(mode="reduce-overhead", fullgraph=True)
-    callbacks = [checkpoint, model_summary, lr_monitor, compile]
+    if config.compile:
+        compile = Compile(mode="reduce-overhead", fullgraph=True)
+        callbacks = [checkpoint, model_summary, lr_monitor, compile]
+    else:
+        callbacks = [checkpoint, model_summary, lr_monitor]
     # ----------Logger----------
     comet_logger = CometLogger(
         api_key=config.comet_api,
@@ -60,7 +63,7 @@ if __name__ == "__main__":
     # ==========Model==========
     model = ImageModule(config=config)
 
-    train_dataloader, val_dataloader, test_dataloader = get_speed_dataloader(config)
+    train_dataloader, val_dataloader, test_dataloader = get_speedplussy_dataloader(config)
     # train_dataloader, val_dataloader = get_spark_dataloader(config)
 
     trainer = Trainer(

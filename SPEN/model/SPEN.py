@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import timm
+from timm.layers.conv_bn_act import ConvBnAct
 from pathlib import Path
 
 from .head import *
@@ -42,12 +43,24 @@ class SPEN(nn.Module):
                                           in_chans=1,
                                           features_only=True)
         backbone_out_channels = self.backbone.feature_info.channels()
-        backbone_out_channels = config.backbone_args[config.backbone]["out_channels"]
         if "mobilenetv3" in model_name:
-            self.backbone.blocks.pop(-1)
-            self.backbone._stage_out_idx = (6, 5, 4, 3, 2, 1)
+            self.backbone.blocks[-1].append(ConvBnAct(
+                backbone_out_channels[-1],
+                160,
+                kernel_size=1,
+                stride=1,
+            ))
+            backbone_out_channels[-1] = 160
         elif "resnet" in model_name:
-            self.backbone._stage_out_idx = (5, 4, 3, 2, 1)
+            self.backbone.layer4.append(ConvBnAct(
+                backbone_out_channels[-1],
+                256,
+                kernel_size=1,
+                stride=1,
+            ))
+            backbone_out_channels[-1] = 256
+        elif "efficientnet" in model_name:
+            pass
         # self.backbone.blocks[-2].append(Attention(backbone_out_channels[-2], 4, apply_WMSA=config.WMSA, apply_GMMSA=config.GMMSA))
         # self.backbone.blocks[-3].append(Attention(backbone_out_channels[-3], 4, apply_WMSA=config.WMSA, apply_GMMSA=config.GMMSA))
         # neck

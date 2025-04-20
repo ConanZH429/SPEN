@@ -9,7 +9,6 @@ from scipy.spatial.transform import Rotation as R
 
 @numba.njit
 def quat2euler(q):
-    rad2pi = 180 / math.pi
     q0, q1, q2, q3 = q
     q1_2 = q1**2
     q2_2 = q2**2
@@ -17,12 +16,12 @@ def quat2euler(q):
     yaw = math.atan2(
         2*(q0*q2 + q1*q3),
         1 - 2*(q2_2+q1_2)
-    ) * rad2pi
-    pitch = math.asin(2*(q0*q1 - q2*q3)) * rad2pi
+    )
+    pitch = math.asin(2*(q0*q1 - q2*q3))
     roll = math.atan2(
         2*(q0*q3 + q1*q2),
         1 - 2*(q1_2+q3_2)
-    ) * rad2pi
+    )
     return np.array([yaw, pitch, roll])
 
 class EulerEncoder():

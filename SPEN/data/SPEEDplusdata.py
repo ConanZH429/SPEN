@@ -201,7 +201,7 @@ class SPEEDplusTrainDataset(SPEEDplusDataset):
         self.perspective_aug = PerspectiveAug(p=config.Perspective_p,
                                               Camera=self.Camera,
                                               **config.Perspective_args)
-        self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p)
+        self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p, sunflare_p=config.SunFlare_p)
 
     def __getitem__(self, index):
         image = self._get_image(index, self.image_list[index])
