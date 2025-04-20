@@ -6,6 +6,7 @@ import numpy as np
 import albumentations as A
 
 from threading import Thread
+from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
@@ -13,7 +14,7 @@ from random import shuffle
 from torchvision.transforms import v2, InterpolationMode
 from ..cfg import SPEEDConfig
 from .augmentation import DropBlockSafe, CropAndPadSafe, CropAndPaste, AlbumentationAug, ZAxisRotation, PerspectiveAug
-from .utils import MultiEpochsDataLoader
+from .utils import MultiEpochsDataLoader, world2image, points2box
 from ..pose import get_pos_encoder, get_ori_encoder
 from ..utils import SPEEDCamera
 
@@ -137,7 +138,6 @@ class ImageReader(Thread):
         return self.image_dict
 
 
-
 class SPEEDDataset(Dataset):
     """
     The base class for SPEED dataset.
@@ -166,10 +166,30 @@ class SPEEDDataset(Dataset):
         for k in self.label.keys():
             self.label[k]["pos"] = np.array(self.label[k]["pos"], dtype=np.float32)
             self.label[k]["ori"] = np.array(self.label[k]["ori"], dtype=np.float32)
-            self.label[k]["bbox"] = np.array(self.label[k]["bbox"], dtype=np.int32)
-            if self.resize_first:
-                self.label[k]["bbox"] = self.label[k]["bbox"] * self.image_first_size[0] / 1200
-                self.label[k]["bbox"] = self.label[k]["bbox"].astype(np.int32)
+            # self.label[k]["bbox"] = np.array(self.label[k]["bbox"], dtype=np.int32)
+            # if self.resize_first:
+            #     self.label[k]["bbox"] = self.label[k]["bbox"] * self.image_first_size[0] / 1200
+            #     self.label[k]["bbox"] = self.label[k]["bbox"].astype(np.int32)
+        # caculate the keypoints of the image
+        points = np.array(
+            [[-0.37,   -0.385,   0.3215],
+            [-0.37,    0.385,   0.3215],
+            [ 0.37,    0.385,   0.3215],
+            [ 0.37,   -0.385,   0.3215],
+            [-0.37,   -0.264,   0.    ],
+            [-0.37,    0.304,   0.    ],
+            [ 0.37,    0.304,   0.    ],
+            [ 0.37,   -0.264,   0.    ],
+            [-0.5427,  0.4877,  0.2535],
+            [ 0.5427,  0.4877,  0.2591],
+            [ 0.305,  -0.579,   0.2515],]
+        )
+        if self.resize_first:
+            points = points * self.image_first_size[0] / 1200
+        for k in self.label.keys():
+            points_image = world2image(self.label[k]["pos"], self.label[k]["ori"], self.Camera, points)
+            self.label[k]["points"] = points_image
+            self.label[k]["bbox"] = points2box(points_image, self.image_first_size if self.resize_first else (1200, 1920))
         # cache the image data
         if self.cache:
             self.image_dict = {}
@@ -224,7 +244,7 @@ class SPEEDDataset(Dataset):
             Tuple[np.ndarray, np.ndarray, np.ndarray]: The position, orientation and bounding box.
         """
         label = self.label[image_name]
-        return label["pos"], label["ori"], label["bbox"]
+        return label["pos"], label["ori"], label["bbox"], label["points"]
 
 
     def divide_data(self, lst: list, n: int):
@@ -267,13 +287,13 @@ class SPEEDTrainDataset(SPEEDDataset):
 
     def __getitem__(self, index):
         image = self._get_image(self.image_list[index])
-        pos, ori, box = self._get_label(self.image_list[index])
+        pos, ori, box, points = self._get_label(self.image_list[index])
         
         # data augmentation
         image = self.crop_and_paste(image, box)
         image = self.crop_and_pad_safe(image, box)
         image = self.drop_block_safe(image, box)
-        image, pos, ori, box = self.z_axis_rotation(image, pos, ori, box)
+        image, pos, ori, box, points = self.z_axis_rotation(image, pos, ori, box, points)
         image, pos, ori, box = self.persepctive_aug(image, pos, ori, box)
         image = self.albumentation_aug(image, box)
 
@@ -285,6 +305,7 @@ class SPEEDTrainDataset(SPEEDDataset):
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
             "box": box.astype(np.int32),
+            "points": points.astype(np.float32),
         }
         # encode the position
         label["pos_encode"] = self.pos_encoder.encode(pos)
@@ -309,7 +330,7 @@ class SPEEDValDataset(SPEEDDataset):
     
     def __getitem__(self, index):
         image = self._get_image(self.image_list[index])
-        pos, ori, box = self._get_label(self.image_list[index])
+        pos, ori, box, points = self._get_label(self.image_list[index])
 
         # transform the image to tensor
         image_tensor = self.image2tensor(image)
@@ -319,6 +340,7 @@ class SPEEDValDataset(SPEEDDataset):
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
             "box": box.astype(np.int32),
+            "points": points.astype(np.float32),
         }
         # encode the position
         label["pos_encode"] = self.pos_encoder.encode(pos)

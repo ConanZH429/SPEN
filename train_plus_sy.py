@@ -3,7 +3,7 @@ import torch
 import os
 
 import torch.autograd.gradcheck
-from SPEN.cfg import SPEEDplusConfig
+from SPEN.cfg import SPEEDplussyConfig
 from SPEN.data import get_speedplussy_dataloader
 from SPEN.module import ImageModule
 from SPEN.utils import parse2config
@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 if __name__ == "__main__":
-    config = SPEEDplusConfig()
+    config = SPEEDplussyConfig()
     config = parse2config(config)
     os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
 

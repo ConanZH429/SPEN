@@ -76,7 +76,7 @@ class PerspectiveAug():
             pos (np.ndarray): The position.
             ori (np.ndarray): The orientation.
             box (np.ndarray): The bounding box.
-        
+            
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: The augmented image, position, orientation and bounding box.
         """
@@ -172,15 +172,24 @@ class ZAxisRotation():
         self.Camera = Camera
         self.p = p
     
-    def __call__(self, image: np.ndarray, pos: np.ndarray, ori: np.ndarray, box: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def __call__(self, image: np.ndarray, pos: np.ndarray, ori: np.ndarray, box: np.ndarray, key_points: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Apply rotation around the z-axis to an image and its corresponding position, orientation, bounding box and key points.
+        Args:
+            image (np.ndarray): The image.
+            pos (np.ndarray): The position. Shape: (3,).
+            ori (np.ndarray): The orientation. Shape: (4,).
+            box (np.ndarray): The bounding box. Shape: (4,).
+            key_points (np.ndarray): The key points. Shape: (11, 3).
+        """
         if random.random() > self.p:
-            return image, pos, ori, box
+            return image, pos, ori, box, key_points
 
         h, w = image.shape[:2]
         original_area = (box[2] - box[0]) * (box[3] - box[1])
 
         t = 0
-        r_area = 0.9 * original_area
+        r_area = 0.8 * original_area
         while True:
             angle = random.uniform(-self.max_angle, self.max_angle)
 
@@ -189,14 +198,17 @@ class ZAxisRotation():
 
             warp_matrix = self.Camera.K_image @ rotation_matrix @ self.Camera.K_image_inv
 
-            box_warpped = warp_box(box, warp_matrix, w, h)
+            points_warpped = warp_matrix @ key_points.T     # 3x11
+            box_warpped = np.array([points_warpped[0].min(), points_warpped[1].min(),
+                                    points_warpped[0].max(), points_warpped[1].max()])
             box_warpped_area = (box_warpped[2] - box_warpped[0]) * (box_warpped[3] - box_warpped[1])
+    
             if box_warpped_area >= r_area:
                 break
             else:
                 t += 1
                 if t > self.max_t:
-                    return image, pos, ori, box
+                    return image, pos, ori, box, key_points
 
         image_warpped = cv.warpPerspective(image, warp_matrix, (w, h), flags=cv.INTER_LINEAR)
 
@@ -204,7 +216,7 @@ class ZAxisRotation():
         ori_warpped = rotation * R.from_quat(ori, scalar_first=True)
         ori_warpped = ori_warpped.as_quat(canonical=True, scalar_first=True)
 
-        return image_warpped, pos_warpped.astype(np.float32), ori_warpped.astype(np.float32), box_warpped.astype(np.int32)
+        return image_warpped, pos_warpped.astype(np.float32), ori_warpped.astype(np.float32), box_warpped.astype(np.int32), points_warpped.astype(np.int32).T
 
 class AlbumentationAug():
     """

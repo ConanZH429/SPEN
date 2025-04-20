@@ -91,13 +91,14 @@ def draw_world_points(image: np.ndarray, points: np.ndarray, pos: np.ndarray, or
     Returns:
         np.ndarray: The image with the points.
     """
-    points_world = np.hstack((points, np.ones((points.shape[0], 1)))).T
-    rotation = R.from_quat(ori, scalar_first=True)
-    extrinsic_mat = np.hstack((rotation.as_matrix(), pos.reshape(3, 1)))
-    points_cam = extrinsic_mat @ points_world
-    points_cam = points_cam / points_cam[2]
-    points_image = Camera.K_image @ points_cam
-    points_image = points_image.T
+    # points_world = np.hstack((points, np.ones((points.shape[0], 1)))).T
+    # rotation = R.from_quat(ori, scalar_first=True)
+    # extrinsic_mat = np.hstack((rotation.as_matrix(), pos.reshape(3, 1)))
+    # points_cam = extrinsic_mat @ points_world
+    # points_cam = points_cam / points_cam[2]
+    # points_image = Camera.K_image @ points_cam
+    # points_image = points_image.T
+    points_image = points
     for point_image in points_image:
         image = cv.circle(image, tuple(point_image[:-1].astype(int)), 20, color, -1)
     if show:
@@ -110,13 +111,14 @@ def display_image(image_name: Optional[str] = None,
                   display_label_axis: bool = True,
                   display_pre_axis: bool = False,
                   display_box: bool = False,
-                  display_point: bool = False,
+                  display_points: bool = False,
                   points: Optional[np.ndarray] = None,
                   dataset_type: str = "SPEED",
                   save_path: Optional[str] = None,
                   pos: Optional[np.ndarray] = None,
                   ori: Optional[np.ndarray] = None,
-                  box: Optional[np.ndarray] = None) -> None:
+                  box: Optional[np.ndarray] = None,
+                  show: bool = True) -> None:
     """
     Display the image with the label axis and the predicted axis.
 
@@ -164,8 +166,9 @@ def display_image(image_name: Optional[str] = None,
         pass
     if display_box:
         image_to_show = draw_box(image_to_show, box_label)
-    if display_point and points is not None:
+    if display_points and points is not None:
         image_to_show = draw_world_points(image_to_show, points, pos_label, ori_label, Camera)
     if save_path:
         cv.imwrite(save_path, image_to_show)
-    show_image(image_to_show)
+    if show:
+        show_image(image_to_show)

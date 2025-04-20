@@ -2,7 +2,7 @@ from pathlib import Path
 
 from ..TorchModel import Config
 
-class SPEEDplusConfig(Config):
+class SPEEDplussyConfig(Config):
     def __init__(self):
         super().__init__()
         # config
@@ -17,9 +17,9 @@ class SPEEDplusConfig(Config):
         self.dataset_folder = Path("../speedplusv2")
         self.cache = True
         self.resize_first = True
-        self.image_first_size = (1000, 1600)
-        self.image_first_size = (900, 1440)
-        # self.image_first_size = (800, 1280)
+        # self.image_first_size = (1000, 1600)
+        # self.image_first_size = (900, 1440)
+        self.image_first_size = (800, 1280)
         self.image_size = (480, 768)
         # self.image_size = (400, 640)
 
@@ -173,7 +173,7 @@ class SPEEDplusConfig(Config):
         self.BETA = (1, 5)               # loss
 
         # augmentation
-        self.ZAxisRotation_p = 1.0
+        self.ZAxisRotation_p = 0.8
         self.ZAxisRotation_args = {
             "max_angle": 180,
             "max_t": 7,
@@ -190,17 +190,17 @@ class SPEEDplusConfig(Config):
             "max_t": 5,
         }
 
-        self.CropAndPaste_p = 0.1
+        self.CropAndPaste_p = 0.2
 
-        self.CropAndPadSafe_p = 0.1
+        self.CropAndPadSafe_p = 0.2
 
-        self.DropBlockSafe_p = 0.1
+        self.DropBlockSafe_p = 0.2
         self.DropBlockSafe_args = {
             "drop_num": 5,
         }
 
-        self.AlbumentationAug_p = 0.5
+        self.AlbumentationAug_p = 0.01
 
-        self.SunFlare_p = 0.5
+        self.SunFlare_p = 0.0
 
         self.name = ""

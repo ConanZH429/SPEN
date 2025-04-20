@@ -22,13 +22,13 @@
 
 # 3.3.4(2) 概率分布平滑实验结果
 # alpha=0.1 n=2 4 6
-python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
-python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 4 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
-python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 6 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 4 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.1 --neighbor 6 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
 # alpha=0.01 0.2 n=2
-python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.01 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
-python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.2 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
-python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.3 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.01 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.2 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
+# python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epochs 200 --batch_size 40 -b mobilenetv3_large_100 -n TailNeck --head AvgPoolHead -pt Cart -plt L1 -ot DiscreteEuler -es 1 --alpha 0.3 --neighbor 2 -olt CE --ALPHA 5 1 --BETA 1 1 0 0
 
 
 
@@ -168,7 +168,7 @@ python3 train.py --exp_type pose-loss --cache --compile --img_size 400 640 --epo
 
 # backbone
 # ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
-# python3 train.py --exp_type Ab_backbone --cache --compile --img_size 600 960 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_large_100 -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
+python3 train.py --exp_type Ab_backbone --cache --compile --img_size 480 768 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_large_100 -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
 # ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
 # python3 train.py --exp_type Ab_backbone --cache --compile --img_size 600 960 --beta_cos --beta_epochs 400 --epochs 400 --batch_size 30 -b mobilenetv3_large_075 -n TailNeck --head TokenHead --num_heads 8 --num_layers 8 -pt DiscreteSpher -rs 1 -as 1 -plt CE -ot DiscreteEuler -es 1 -olt CE --ALPHA 5 1 --BETA 1 5 1 5
 # ps -ef | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
