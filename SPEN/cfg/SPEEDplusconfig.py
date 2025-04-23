@@ -19,7 +19,7 @@ class SPEEDplusConfig(Config):
         self.resize_first = True
         self.image_first_size = (1000, 1600)
         self.image_first_size = (900, 1440)
-        # self.image_first_size = (800, 1280)
+        self.image_first_size = (800, 1280)
         self.image_size = (480, 768)
         # self.image_size = (400, 640)
 
@@ -29,7 +29,7 @@ class SPEEDplusConfig(Config):
         self.batch_size = 50
         self.lr0 = 0.001
         self.lr_min = 0.000001
-        self.warmup_epochs = 5
+        self.warmup_epochs = 0
         self.beta_cos = False
         self.beta_epochs = 400
         self.weight_decay = 0.00001
@@ -173,7 +173,7 @@ class SPEEDplusConfig(Config):
         self.BETA = (1, 5)               # loss
 
         # augmentation
-        self.ZAxisRotation_p = 1.0
+        self.ZAxisRotation_p = 0.0
         self.ZAxisRotation_args = {
             "max_angle": 180,
             "max_t": 7,
@@ -190,11 +190,11 @@ class SPEEDplusConfig(Config):
             "max_t": 5,
         }
 
-        self.CropAndPaste_p = 0.1
+        self.CropAndPaste_p = 0.0
 
-        self.CropAndPadSafe_p = 0.1
+        self.CropAndPadSafe_p = 0.0
 
-        self.DropBlockSafe_p = 0.1
+        self.DropBlockSafe_p = 0.0
         self.DropBlockSafe_args = {
             "drop_num": 5,
         }

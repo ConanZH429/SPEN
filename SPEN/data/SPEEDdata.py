@@ -171,23 +171,8 @@ class SPEEDDataset(Dataset):
             #     self.label[k]["bbox"] = self.label[k]["bbox"] * self.image_first_size[0] / 1200
             #     self.label[k]["bbox"] = self.label[k]["bbox"].astype(np.int32)
         # caculate the keypoints of the image
-        points = np.array(
-            [[-0.37,   -0.385,   0.3215],
-            [-0.37,    0.385,   0.3215],
-            [ 0.37,    0.385,   0.3215],
-            [ 0.37,   -0.385,   0.3215],
-            [-0.37,   -0.264,   0.    ],
-            [-0.37,    0.304,   0.    ],
-            [ 0.37,    0.304,   0.    ],
-            [ 0.37,   -0.264,   0.    ],
-            [-0.5427,  0.4877,  0.2535],
-            [ 0.5427,  0.4877,  0.2591],
-            [ 0.305,  -0.579,   0.2515],]
-        )
-        if self.resize_first:
-            points = points * self.image_first_size[0] / 1200
         for k in self.label.keys():
-            points_image = world2image(self.label[k]["pos"], self.label[k]["ori"], self.Camera, points)
+            points_image = world2image(self.label[k]["pos"], self.label[k]["ori"], self.Camera)
             self.label[k]["points"] = points_image
             self.label[k]["bbox"] = points2box(points_image, self.image_first_size if self.resize_first else (1200, 1920))
         # cache the image data

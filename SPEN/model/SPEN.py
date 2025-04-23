@@ -44,12 +44,13 @@ class SPEN(nn.Module):
                                           features_only=True)
         backbone_out_channels = self.backbone.feature_info.channels()
         if "mobilenetv3" in model_name:
-            self.backbone.blocks[-1].append(ConvBnAct(
-                backbone_out_channels[-1],
-                160,
-                kernel_size=1,
-                stride=1,
-            ))
+            self.backbone.blocks[-1] = nn.Identity()
+            # self.backbone.blocks[-1].append(ConvBnAct(
+            #     backbone_out_channels[-1],
+            #     160,
+            #     kernel_size=1,
+            #     stride=1,
+            # ))
             backbone_out_channels[-1] = 160
         elif "resnet" in model_name:
             self.backbone.layer4.append(ConvBnAct(

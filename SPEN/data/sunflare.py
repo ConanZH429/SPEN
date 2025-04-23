@@ -85,9 +85,9 @@ def add_sun_flare_overlay(img: np.ndarray,
 
 
 def add_sun_flare_overlayv2(img: np.ndarray,
-                          flare_center: tuple[int, int],
-                          src_radius: int,
-                          src_color: int):
+                            flare_center: tuple[int, int],
+                            src_radius: int,
+                            src_color: int):
     overlay = img.copy()
     output = img.copy()
 
@@ -102,17 +102,53 @@ def add_sun_flare_overlayv2(img: np.ndarray,
     # max_alpha is calculated using weighted_brightness and total_radii_length times 5
     # meaning the higher the alpha with larger area, the brighter the bright spot will be
     # for list of alphas in range [0.05, 0.2], the max_alpha should below 1
-    alpha = np.linspace(0.0, 1.0, num=num_times)
+    alpha = np.linspace(0.0, random.uniform(0.5, 0.9), num=num_times)
 
     rad = np.linspace(1, src_radius, num=num_times)
 
     for i in range(num_times):
         cv.circle(overlay, point, int(rad[i]), src_color, -1)
-        alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
+        alp = alpha[num_times - i - 1]**3
         output = add_weighted(overlay, alp, output, 1 - alp)
         
     return output
 
+def add_sun_flare_physics_v2(img: np.ndarray,
+                             flare_center: tuple[int, int],
+                             src_radius: int,
+                             src_color: int):
+
+    output = img.copy().astype(np.float32)
+    height, width = img.shape[:2]
+
+    # Create a separate flare layer
+    flare_layer = np.zeros_like(img, dtype=np.float32)
+
+    # Add the main sun
+    cv.circle(flare_layer, flare_center, src_radius, src_color, -1)
+
+    # Add lens diffraction spikes
+    for angle in [0, 45, 90, 135]:
+        end_point = (
+            int(flare_center[0] + np.cos(np.radians(angle)) * max(width, height)),
+            int(flare_center[1] + np.sin(np.radians(angle)) * max(width, height)),
+        )
+        cv.line(flare_layer, flare_center, end_point, src_color, 2)
+
+    # Apply gaussian blur to soften the flare
+    flare_layer = cv.GaussianBlur(flare_layer, (5, 5), sigmaX=15, sigmaY=15)
+
+    # Create a radial gradient mask
+    y, x = np.ogrid[:height, :width]
+    mask = np.sqrt((x - flare_center[0]) ** 2 + (y - flare_center[1]) ** 2)
+    mask = 1 - np.clip(mask / (max(width, height) * 0.7), 0, 1)
+
+    # Apply the mask to the flare layer
+    flare_layer *= mask
+
+    output = 255 - ((255 - output) * (255 - flare_layer) / 255)
+    # output = cv.cvtColor(output, cv.COLOR_RGB2GRAY)
+    return output.astype(np.uint8)
 
 def sun_flare(image: np.ndarray,
               flare_center: tuple[int, int],
@@ -137,7 +173,13 @@ def sun_flare(image: np.ndarray,
     #     src_color=src_color,
     #     circles=circles
     # )
-    image = add_sun_flare_overlayv2(
+    # image = add_sun_flare_overlayv2(
+    #     img=image,
+    #     flare_center=flare_center,
+    #     src_radius=src_radius,
+    #     src_color=src_color
+    # )
+    image = add_sun_flare_physics_v2(
         img=image,
         flare_center=flare_center,
         src_radius=src_radius,

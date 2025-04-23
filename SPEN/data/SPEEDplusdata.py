@@ -93,30 +93,16 @@ class SPEEDplusDataset(Dataset):
         for k in self.label.keys():
             self.label[k]["pos"] = np.array(self.label[k]["pos"], dtype=np.float32)
             self.label[k]["ori"] = np.array(self.label[k]["ori"], dtype=np.float32)
-            self.label[k]["bbox"] = np.array(self.label[k]["bbox"], dtype=np.int32)
+            # self.label[k]["bbox"] = np.array(self.label[k]["bbox"], dtype=np.int32)
             # self.label[k]["bbox"] = np.clip(self.label[k]["bbox"], 0, None)
             # self.label[k]["bbox"][2] = np.clip(self.label[k]["bbox"][2], 0, 1920)
             # self.label[k]["bbox"][3] = np.clip(self.label[k]["bbox"][3], 0, 1200)
             # if self.resize_first:
             #     self.label[k]["bbox"] = self.label[k]["bbox"] * self.image_first_size[0] / 1200
             #     self.label[k]["bbox"] = self.label[k]["bbox"].astype(np.int32)
-        points = np.array(
-            [[-0.37,   -0.385,   0.3215],
-            [-0.37,    0.385,   0.3215],
-            [ 0.37,    0.385,   0.3215],
-            [ 0.37,   -0.385,   0.3215],
-            [-0.37,   -0.264,   0.    ],
-            [-0.37,    0.304,   0.    ],
-            [ 0.37,    0.304,   0.    ],
-            [ 0.37,   -0.264,   0.    ],
-            [-0.5427,  0.4877,  0.2535],
-            [ 0.5427,  0.4877,  0.2591],
-            [ 0.305,  -0.579,   0.2515],]
-        )
-        if self.resize_first:
-            points = points * self.image_first_size[0] / 1200
+        # caculate the keypoints of the image
         for k in self.label.keys():
-            points_image = world2image(self.label[k]["pos"], self.label[k]["ori"], self.Camera, points)
+            points_image = world2image(self.label[k]["pos"], self.label[k]["ori"], self.Camera)
             self.label[k]["points"] = points_image
             self.label[k]["bbox"] = points2box(points_image, self.image_first_size if self.resize_first else (1200, 1920))
         # cache the image data

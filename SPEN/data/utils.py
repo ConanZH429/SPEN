@@ -19,8 +19,20 @@ def points2box(points: np.ndarray, image_size: tuple) -> np.ndarray:
     )
     return box
 
-def world2image(pos: np.ndarray, ori: np.ndarray, Camera: SPEEDCamera,
-                points: np.ndarray) -> np.ndarray:
+def world2image(pos: np.ndarray, ori: np.ndarray, Camera: SPEEDCamera) -> np.ndarray:
+    points = np.array(
+        [[-0.37,   -0.385,   0.3215],
+        [-0.37,    0.385,   0.3215],
+        [ 0.37,    0.385,   0.3215],
+        [ 0.37,   -0.385,   0.3215],
+        [-0.37,   -0.264,   0.    ],
+        [-0.37,    0.304,   0.    ],
+        [ 0.37,    0.304,   0.    ],
+        [ 0.37,   -0.264,   0.    ],
+        [-0.5427,  0.4877,  0.2535],
+        [ 0.5427,  0.4877,  0.2591],
+        [ 0.305,  -0.579,   0.2515],]
+    )
     points_world = np.hstack((points, np.ones((points.shape[0], 1)))).T
     rotation = R.from_quat(ori, scalar_first=True)
     extrinsic_mat = np.hstack((rotation.as_matrix(), pos.reshape(3, 1)))

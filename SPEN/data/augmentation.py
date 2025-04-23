@@ -232,18 +232,19 @@ class AlbumentationAug():
         self.p = p
         self.sunflare_p = sunflare_p
         self.aug = A.Compose([
-            A.RandomBrightnessContrast(
-                brightness_limit=(-0.2, 0.2),
-                contrast_limit=(-0.2, 0.2),
-                p=p
+            A.ColorJitter(
+                brightness=(0.8, 1.2),
+                contrast=(0.8, 1.2),
+                saturation=(0.8, 1.2),
+                hue=(-0.1, 0.1)
             ),
             A.OneOf([
-                A.MotionBlur(blur_limit=(3, 9)),
-                A.MedianBlur(blur_limit=(3, 7)),
+                A.MotionBlur(blur_limit=(3, 5)),
+                A.MedianBlur(blur_limit=(3, 5)),
                 A.GaussianBlur()
             ], p=p),
             A.GaussNoise(
-                std_range=(0.05, 0.2),
+                std_range=(0.05, 0.1),
                 mean_range=(0.0, 0.1),
                 p=p
             )
@@ -261,13 +262,15 @@ class AlbumentationAug():
         """
         image = self.aug(image=image)["image"]
         if random.random() < self.sunflare_p:
+            box_w, box_h = box[2] - box[0], box[3] - box[1]
+            src_radius = random.randint(int(min(box_w, box_h) * 0.6), int(max(box_w, box_h) * 1.4)) // 2
             image = sun_flare(
                 image=image,
                 flare_center=(
                     random.randint(box[0], box[2]),
                     random.randint(box[1], box[3]),
                 ),
-                src_radius=random.randint(350, 700),
+                src_radius=src_radius,
                 src_color=random.randint(230, 255),
                 angle_range=(0, 1),
                 num_circles=random.randint(5, 10),
@@ -352,6 +355,10 @@ class CropAndPadSafe():
         
         h, w = image.shape[:2]
         x_min, y_min, x_max, y_max = box
+        x_min -= 10
+        y_min -= 10
+        x_max += 10
+        y_max += 10
 
         # Random crop around the bounding box
         top = np.random.randint(0, y_min) if y_min > 0 else 0

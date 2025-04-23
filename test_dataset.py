@@ -35,10 +35,10 @@ from torch.utils.data import DataLoader
 #               image_type="synthetic",
 #               display_box=True)
 
-config = SPEEDConfig()
+config = SPEEDplusConfig()
 config.cache = False
-config.resize_first = False
-dataset = SPEEDTrainDataset(config)
+config.resize_first = True
+dataset = SPEEDplusTrainDataset(config)
 train_dataloader = DataLoader(
     dataset,
     batch_size=1,
@@ -47,6 +47,7 @@ train_dataloader = DataLoader(
 for batch in train_dataloader:
     image_tensor, image, label = batch
     image = image.squeeze().numpy()
+    print(image.shape)
     display_image(image=image,
                   pos=label["pos"].squeeze().numpy(),
                   ori=label["ori"].squeeze().numpy(),
