@@ -57,15 +57,6 @@ class CometLogger(Logger):
         """
         self.experiment.log_text(text, step=step)
     
-    def log_tags(self, tags: list[str]):
-        """
-        Log tags to Comet
-
-        Args:
-            tags (list[str]): The tags to log
-        """
-        self.experiment.add_tags(list(map(str, tags)))
-    
     def log_file(self, file_path: str, file_name: Optional[str] = None):
         """
         Log a file to Comet
@@ -102,4 +93,4 @@ class CometLogger(Logger):
         Args:
             hyperparams (dict): The hyperparameters to log
         """
-        self.experiment.log_parameters(hyperparams)
+        self.experiment.log_parameters(hyperparams, nested_support=True)

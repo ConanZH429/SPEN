@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from torchvision.transforms import v2, InterpolationMode
 from ..cfg import SPEEDplusConfig
-from .augmentation import DropBlockSafe, CropAndPadSafe, CropAndPaste, AlbumentationAug, ZAxisRotation, PerspectiveAug
+from .augmentation import DropBlockSafe, CropAndPadSafe, CropAndPaste, AlbumentationAug, ZAxisRotation, OpticalCenterRotation, TransRotation, SurfaceBrightnessAug, ClothSurfaceAug, SunFlare
 from .utils import MultiEpochsDataLoader, world2image, points2box
 from ..pose import get_pos_encoder, get_ori_encoder
 from ..utils import SPEEDplusCamera
@@ -56,12 +56,14 @@ class SPEEDplussyDataset(Dataset):
         self.resize_first = config.resize_first
         self.image_first_size = config.image_first_size
         self.Camera = SPEEDplusCamera(config.image_first_size) if self.resize_first else SPEEDplusCamera((1200, 1920))
-        # transform the image to tensor
-        self.image2tensor = v2.Compose([
-            v2.ToImage(),
-            v2.Resize(self.image_size, interpolation=InterpolationMode.BILINEAR),
-            v2.ToDtype(torch.float32, scale=True),
-        ])
+        # cache the image data
+        if self.cache:
+            if self.resize_first:
+                self.image_numpy = np.zeros((len(self.image_list), self.image_first_size[0], self.image_first_size[1]), dtype=np.uint8)
+            else:
+                self.image_numpy = np.zeros((len(self.image_list), self.image_size[0], self.image_size[1]), dtype=np.uint8)
+            self._cache_image_multithread(self.image_list)
+            print(f"Load {self.image_numpy.shape[0]} {mode} images ({self.image_numpy[0].shape}) successfully.")
         # load the labels
         self.label = {}
         if mode == "train":
@@ -77,36 +79,32 @@ class SPEEDplussyDataset(Dataset):
         for k in self.label.keys():
             self.label[k]["pos"] = np.array(self.label[k]["pos"], dtype=np.float32)
             self.label[k]["ori"] = np.array(self.label[k]["ori"], dtype=np.float32)
-            # self.label[k]["bbox"] = np.array(self.label[k]["bbox"], dtype=np.int32)
-            # self.label[k]["bbox"] = np.clip(self.label[k]["bbox"], 0, None)
-            # self.label[k]["bbox"][2] = np.clip(self.label[k]["bbox"][2], 0, 1920)
-            # self.label[k]["bbox"][3] = np.clip(self.label[k]["bbox"][3], 0, 1200)
-            # if self.resize_first:
-            #     self.label[k]["bbox"] = self.label[k]["bbox"] * self.image_first_size[0] / 1200
-            #     self.label[k]["bbox"] = self.label[k]["bbox"].astype(np.int32)
         # caculate the keypoints of the image
         for k in self.label.keys():
-            points_image = world2image(self.label[k]["pos"], self.label[k]["ori"], self.Camera)
-            self.label[k]["points"] = points_image
-            self.label[k]["bbox"] = points2box(points_image, self.image_first_size if self.resize_first else (1200, 1920))
-        # cache the image data
-        if self.cache:
-            if self.resize_first:
-                self.image_numpy = np.zeros((len(self.image_list), self.image_first_size[0], self.image_first_size[1]), dtype=np.uint8)
-            else:
-                self.image_numpy = np.zeros((len(self.image_list), self.image_size[0], self.image_size[1]), dtype=np.uint8)
-            self._cache_image_multithread(self.image_list)
-            print(f"Load {self.image_numpy.shape[0]} {mode} images ({self.image_numpy[0].shape}) successfully.")
-        self.pos_encoder = get_pos_encoder(config.pos_type, **config.pos_args[config.pos_type])
-        self.ori_encoder = get_ori_encoder(config.ori_type, **config.ori_args[config.ori_type])
-        if config.pos_type == "DiscreteSpher":
-            self.spher_encoder = get_pos_encoder("Spher", **config.pos_args["Spher"])
-        else:
-            self.spher_encoder = None
-        if config.ori_type == "DiscreteEuler":
-            self.euler_encoder = get_ori_encoder("Euler", **config.ori_args["Euler"])
-        else:
-            self.euler_encoder = None
+            points_cam, points_image, r_cam_min_idx, r_cam_max_idx = world2image(self.label[k]["pos"], self.label[k]["ori"], self.Camera)
+            self.label[k]["points_cam"] = points_cam      # 11x4
+            self.label[k]["points_image"] = points_image      # 11x3
+            self.label[k]["r_cam_min_idx"] = r_cam_min_idx
+            self.label[k]["r_cam_max_idx"] = r_cam_max_idx
+            box, in_image_num = points2box(points_image, self.image_first_size if self.resize_first else (1200, 1920))
+            self.label[k]["bbox"] = box
+            self.label[k]["in_image_num"] = in_image_num
+        # transform the image to tensor
+        self.image2tensor = v2.Compose([
+            v2.ToImage(),
+            v2.Resize(self.image_size, interpolation=InterpolationMode.BILINEAR),
+            v2.ToDtype(torch.float32, scale=True),
+        ])
+        # encoder
+        if self.mode in ("train", "test"):
+            self.pos_encoder_list = [
+                get_pos_encoder(pos_type, **config.pos_args[pos_type])
+                for pos_type in config.pos_loss_dict.keys()
+            ]
+            self.ori_encoder_list = [
+                get_ori_encoder(ori_type, **config.ori_args[ori_type])
+                for ori_type in config.ori_loss_dict.keys()
+            ]
         self.len = int(len(self.image_list))
     
     def __len__(self) -> int:
@@ -145,7 +143,7 @@ class SPEEDplussyDataset(Dataset):
             Tuple[np.ndarray, np.ndarray, np.ndarray]: The position, orientation and bounding box.
         """
         label = self.label[image_name]
-        return label["pos"], label["ori"], label["bbox"], label["points"]
+        return label["pos"], label["ori"], label["bbox"], label["points_cam"], label["points_image"], label["in_image_num"], label["r_cam_min_idx"], label["r_cam_max_idx"]
 
 
     def divide_data(self, lst: list, n: int):
@@ -181,22 +179,46 @@ class SPEEDplussyTrainDataset(SPEEDplussyDataset):
         self.crop_and_paste = CropAndPaste(p=config.CropAndPaste_p)
         self.crop_and_pad_safe = CropAndPadSafe(p=config.CropAndPadSafe_p)
         self.drop_block_safe = DropBlockSafe(p=config.DropBlockSafe_p, **config.DropBlockSafe_args)
-        self.z_axis_rotation = ZAxisRotation(p=config.ZAxisRotation_p, Camera=self.Camera, **config.ZAxisRotation_args)
-        self.perspective_aug = PerspectiveAug(p=config.Perspective_p,
-                                              Camera=self.Camera,
-                                              **config.Perspective_args)
-        self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p, sunflare_p=0)
+        self.sun_flare = SunFlare(p=config.SunFlare_p)
+        self.cloth_surface = ClothSurfaceAug(
+            image_shape=self.image_first_size if self.resize_first else self.image_size,
+            p=config.ClothSurface_p,
+        )
+        self.surface_brightness = SurfaceBrightnessAug(p=config.SurfaceBrightness_p)
+        self.z_axis_rotation = ZAxisRotation(
+            image_shape=self.image_first_size if self.resize_first else self.image_size,
+            p=config.ZAxisRotation_p,
+            Camera=self.Camera,
+            **config.ZAxisRotation_args
+        )
+        self.optical_center_rotation = OpticalCenterRotation(
+            image_shape=self.image_first_size if self.resize_first else self.image_size,
+            p=config.OpticalCenterRotation_p,
+            Camera=self.Camera,
+            **config.OpticalCenterRotation_args
+        )
+        self.trans_rotation = TransRotation(
+            image_shape=self.image_first_size if self.resize_first else self.image_size,
+            p=config.TransRotation_p,
+            Camera=self.Camera,
+            **config.TransRotation_args
+        )
+        self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p)
 
     def __getitem__(self, index):
-        image = self._get_image(index, self.image_list[index])
-        pos, ori, box, points = self._get_label(self.image_list[index])
-        
+        image = self._get_image(self.image_list[index])
+        pos, ori, box, points_cam, points_image, in_image_num, r_cam_min_idx, r_cam_max_idx = self._get_label(self.image_list[index])
+
         # data augmentation
         image = self.crop_and_paste(image, box)
         image = self.crop_and_pad_safe(image, box)
         image = self.drop_block_safe(image, box)
-        image, pos, ori, box, points = self.z_axis_rotation(image, pos, ori, box, points)
-        image, pos, ori, box = self.perspective_aug(image, pos, ori, box)
+        image = self.cloth_surface(image, points_image, r_cam_min_idx)
+        image = self.surface_brightness(image, points_image, r_cam_min_idx)
+        image = self.sun_flare(image, box)
+        image, pos, ori, box, points_cam, points_image = self.z_axis_rotation(image, pos, ori, box, points_cam, points_image, in_image_num)
+        image, pos, ori, box, points_cam, points_image = self.optical_center_rotation(image, pos, ori, box, points_cam, points_image, in_image_num)
+        image, pos, ori, box, points_cam, points_image = self.trans_rotation(image, pos, ori, box, points_cam, points_image, in_image_num, r_cam_min_idx, r_cam_max_idx)
         image = self.albumentation_aug(image, box)
 
         # transform the image to tensor
@@ -207,18 +229,19 @@ class SPEEDplussyTrainDataset(SPEEDplussyDataset):
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
             "box": box.astype(np.int32),
-            "points": points.astype(np.float32),
+            "points_cam": points_cam.astype(np.float32),
+            "points_image": points_image.astype(np.float32),
         }
         # encode the position
-        label["pos_encode"] = self.pos_encoder.encode(pos)
+        pos_encode = {}
+        for pos_encoder in self.pos_encoder_list:
+            pos_encode.update(pos_encoder.encode(pos))
+        label["pos_encode"] = pos_encode
         # encode the orientation
-        label["ori_encode"] = self.ori_encoder.encode(ori)
-        # transform the position to cart
-        if self.spher_encoder is not None:
-            label["spher"] = self.spher_encoder.encode(pos)
-        # transform the orientation to euler
-        if self.euler_encoder is not None:
-            label["euler"] = self.euler_encoder.encode(ori)
+        ori_encode = {}
+        for ori_encoder in self.ori_encoder_list:
+            ori_encode.update(ori_encoder.encode(ori))
+        label["ori_encode"] = ori_encode
 
         return image_tensor, image, label
 
@@ -232,7 +255,7 @@ class SPEEDplussyValDataset(SPEEDplussyDataset):
     
     def __getitem__(self, index):
         image = self._get_image(index, self.image_list[index])
-        pos, ori, box, points = self._get_label(self.image_list[index])
+        pos, ori, box, points_cam, points_image, in_image_num, r_cam_min_idx, r_cam_max_idx = self._get_label(self.image_list[index])
 
         # transform the image to tensor
         image_tensor = self.image2tensor(image)
@@ -242,12 +265,9 @@ class SPEEDplussyValDataset(SPEEDplussyDataset):
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
             "box": box.astype(np.int32),
-            "points": points.astype(np.int32),
+            "points_cam": points_cam.astype(np.float32),
+            "points_image": points_image.astype(np.float32),
         }
-        # encode the position
-        label["pos_encode"] = self.pos_encoder.encode(pos)
-        # encode the orientation
-        label["ori_encode"] = self.ori_encoder.encode(ori)
 
         return image_tensor, image, label
 
@@ -261,7 +281,7 @@ class SPEEDplussyTestDataset(SPEEDplussyDataset):
     
     def __getitem__(self, index):
         image = self._get_image(index, self.image_list[index])
-        pos, ori, box, points = self._get_label(self.image_list[index])
+        pos, ori, box, points_cam, points_image, in_image_num, r_cam_min_idx, r_cam_max_idx = self._get_label(self.image_list[index])
 
         # transform the image to tensor
         image_tensor = self.image2tensor(image)
@@ -271,12 +291,19 @@ class SPEEDplussyTestDataset(SPEEDplussyDataset):
             "pos": pos.astype(np.float32),
             "ori": ori.astype(np.float32),
             "box": box.astype(np.int32),
-            "points": points.astype(np.int32),
+            "points_cam": points_cam.astype(np.float32),
+            "points_image": points_image.astype(np.float32),
         }
         # encode the position
-        label["pos_encode"] = self.pos_encoder.encode(pos)
+        pos_encode = {}
+        for pos_encoder in self.pos_encoder_list:
+            pos_encode.update(pos_encoder.encode(pos))
+        label["pos_encode"] = pos_encode
         # encode the orientation
-        label["ori_encode"] = self.ori_encoder.encode(ori)
+        ori_encode = {}
+        for ori_encoder in self.ori_encoder_list:
+            ori_encode.update(ori_encoder.encode(ori))
+        label["ori_encode"] = ori_encode
 
         return image_tensor, image, label
 
@@ -308,7 +335,7 @@ def get_speedplussy_dataloader(config: SPEEDplusConfig):
     )
     test_loader = DataLoader(
         test_dataset,
-        batch_size=config.batch_size,
+        batch_size=1,
         shuffle=False,
         num_workers=config.num_workers,
         persistent_workers=True,

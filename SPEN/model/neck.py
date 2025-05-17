@@ -1,61 +1,63 @@
 from .blocks import *
 from typing import Optional, List
 
-# neck
-class ConvNeck(nn.Module):
-    def __init__(self, in_channels: List[int]):
+
+class BaseNeck(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.conv_p3 = ConvNormAct(in_channels[-3], in_channels[-3], 3, act_layer=ConvAct)
-        self.conv_p4 = ConvNormAct(in_channels[-2], in_channels[-2], 3, act_layer=ConvAct)
-        self.conv_p5 = ConvNormAct(in_channels[-1], in_channels[-1], 3, act_layer=ConvAct)
-        self.out_channels = in_channels
-    
-    def forward(self, x: List[Tensor]):
-        return self.conv_p3(x[-3]), self.conv_p4(x[-2]), self.conv_p5(x[-1])
+        self.out_channels: List[int] = None
 
 
-class IdentityNeck(nn.Module):
-    def __init__(self, in_channels: List[int]):
+class TailNeck(BaseNeck):
+    def __init__(self, in_channels: List[int], **kwargs):
         super().__init__()
-        self.out_channels = in_channels[-3:]
-    
-    def forward(self, x: List[Tensor]):
-        return x[-3], x[-2], x[-1]
+        self.out_channels = [in_channels[-1]]
+        self.att_type = kwargs.get("att_type", None)
 
-
-class TailNeck(nn.Module):
-    def __init__(self, in_channels: List[int], att_type: str):
-        super().__init__()
-        self.out_channels = in_channels[-1:]
-        if att_type == "SE":
-            self.att = SEModule(channels=in_channels[-1], rd_ratio=1/4)
-        else:
+        if self.att_type is None:
             self.att = nn.Identity()
-
+        elif self.att_type == "SE":
+            rd_ratio = kwargs.get("rd_ratio", 1/4)
+            self.att = SEModule(channels=in_channels[-1], rd_ratio=rd_ratio)
+        else:
+            raise ValueError(f"Unsupported attention type: {self.att_type}.")
+        
     def forward(self, x: List[Tensor]):
         return [self.att(x[-1])]
 
 
-class MutiFeatureNeck(nn.Module):
-    def __init__(self, in_channels: List[int], feature_idx: List[int]):
+class IdentityNeck(BaseNeck):
+    def __init__(self, in_channels: List[int], **kwargs):
         super().__init__()
-        self.feature_idx = feature_idx
-        self.out_channels = [sum([in_channels[i] for i in feature_idx])]
-        self.conv = nn.ModuleList()
-        for i in range(len(feature_idx)):
-            s = -feature_idx[i]-1
-            self.conv.append(ConvNormAct(in_channels[feature_idx[i]], in_channels[feature_idx[i]], 3, stride=2**s, act_layer=ConvAct))
-
+        self.out_index = kwargs.get("out_index", (-3, -2, -1))
+        self.out_channels = [in_channels[i] for i in self.out_index]
+        
     def forward(self, x: List[Tensor]):
-        x = x[-len(self.feature_idx):]
-        for i in range(len(self.feature_idx)):
-            x[i] = self.conv[i](x[i])
-        x = torch.cat(x, dim=1)
-        return [x]
+        return [x[i] for i in self.out_index]
 
-class PAFPN(nn.Module):
-    def __init__(self, in_channels: List[int], align_channels: int = 160):
+
+class ConvNeck(BaseNeck):
+    def __init__(self, in_channels: List[int], **kwargs):
         super().__init__()
+        self.out_index = kwargs.get("out_index", (-3, -2, -1))
+        self.out_channels = [in_channels[i] for i in self.out_index]
+        self.conv_list = nn.ModuleList(
+            [
+                ConvNormAct(in_channels[i], in_channels[i], 3, act_layer=ConvAct)
+                for i in self.out_index
+            ]
+        )
+        self.feature_len = len(self.out_index)
+    
+    def forward(self, x: List[Tensor]):
+        return [self.conv_list[i](x[self.out_index[i]]) for i in range(self.feature_len)]
+
+
+class PAFPN(BaseNeck):
+    def __init__(self, in_channels: List[int], **kwargs):
+        super().__init__()
+        align_channels = kwargs.get("align_channels", 160)
+        self.out_channels = [align_channels, align_channels, align_channels]
         self.align_p3 = ConvNormAct(in_channels[-3], align_channels, 1, act_layer=ConvAct)
         self.align_p4 = ConvNormAct(in_channels[-2], align_channels, 1, act_layer=ConvAct)
         self.align_p5 = ConvNormAct(in_channels[-1], align_channels, 1, act_layer=ConvAct)
@@ -70,10 +72,7 @@ class PAFPN(nn.Module):
         self.downsample_p3 = ConvNormAct(align_channels, align_channels, 3, stride=2, apply_act=False, apply_norm=False)
         self.conv4_down = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)
         self.downsample_p4 = ConvNormAct(align_channels, align_channels, 3, stride=2, apply_act=False, apply_norm=False)
-        self.conv5_down = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)
-
-        self.out_channels = [align_channels, align_channels, align_channels]
-
+        self.conv5_down = ConvNormAct(align_channels, align_channels, 3, act_layer=ConvAct)   
     
     def forward(self, x: List[Tensor]):
         """
@@ -105,9 +104,11 @@ class PAFPN(nn.Module):
 
 
 
-class BiFPN(nn.Module):
-    def __init__(self, in_channels: List[int], align_channels: int = 160):
+class BiFPN(BaseNeck):
+    def __init__(self, in_channels: List[int], **kwargs):
         super().__init__()
+        align_channels = kwargs.get("align_channels", 160)
+        self.out_channels = [align_channels, align_channels, align_channels]
         self.eps = torch.tensor(1e-6, dtype=torch.float32)
         # align conv
         self.align_p3 = ConvNormAct(in_channels[-3], align_channels, kernel_size=1, apply_act=False, bias=True)
@@ -137,8 +138,6 @@ class BiFPN(nn.Module):
         self.p5_w2 = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
         self.p4_w2 = nn.Parameter(torch.ones(3, dtype=torch.float32), requires_grad=True)
         self.p3_w2 = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
-
-        self.out_channels = [align_channels, align_channels, align_channels]
 
     def forward(self, x: List[Tensor]):
         """
@@ -195,30 +194,33 @@ class BiFPN(nn.Module):
         return p3_2, p4_2, p5_2
 
 
-class DensAttFPN(nn.Module):
-    def __init__(self, in_channels: List[int], att_type: Optional[str] = None):
+class DensAttFPN(BaseNeck):
+    def __init__(self, in_channels: List[int], **kwargs):
         super().__init__()
-        
-        # FPN
+        self.out_channels = in_channels[-3:]
+        att_type = kwargs.get("att_type", None)
         # FPN
         self.fuse4_up = AttFuse(in_channels[-3:], att_type)
-        self.conv4_up = UniversalInvertedResidual(sum(in_channels[-3:]), in_channels[-2],
-                                                  exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
+        self.conv4_up = InvertedResidual(sum(in_channels[-3:]), in_channels[-2], exp_ratio=8, act_layer=ConvAct)
+        # self.conv4_up = UniversalInvertedResidual(sum(in_channels[-3:]), in_channels[-2],
+        #                                           exp_ratio=8, act_layer=ConvAct, layer_scale_init_value=None)
         self.fuse3_up = AttFuse(in_channels[-4:-1], att_type)
-        self.conv3_up = UniversalInvertedResidual(sum(in_channels[-4:-1]), in_channels[-3],
-                                                  exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
+        self.conv3_up = InvertedResidual(sum(in_channels[-4:-1]), in_channels[-3], exp_ratio=8, act_layer=ConvAct)
+        # self.conv3_up = UniversalInvertedResidual(sum(in_channels[-4:-1]), in_channels[-3],
+        #                                           exp_ratio=8, act_layer=ConvAct, layer_scale_init_value=None)
 
         # PAN
         self.downsample_p3 = ConvNormAct(in_channels[-3], in_channels[-3], 3, stride=2, apply_act=False, apply_norm=False)
-        self.conv4_down = UniversalInvertedResidual(sum(in_channels[-3:-1]), in_channels[-2],
-                                                    exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
+        self.conv4_down = InvertedResidual(sum(in_channels[-3:-1]), in_channels[-2], exp_ratio=8, act_layer=ConvAct)
+        # self.conv4_down = UniversalInvertedResidual(sum(in_channels[-3:-1]), in_channels[-2],
+        #                                             exp_ratio=8, act_layer=ConvAct, layer_scale_init_value=None)
         self.downsample_p4 = ConvNormAct(in_channels[-2], in_channels[-2], 3, stride=2, apply_act=False, apply_norm=False)
-        self.conv5_down = UniversalInvertedResidual(sum(in_channels[-2:]), in_channels[-1],
-                                                    exp_ratio=6, act_layer=ConvAct, layer_scale_init_value=None)
+        self.conv5_down = InvertedResidual(sum(in_channels[-2:]), in_channels[-1], exp_ratio=8, act_layer=ConvAct)
+        # self.conv5_down = UniversalInvertedResidual(sum(in_channels[-2:]), in_channels[-1],
+        #                                             exp_ratio=8, act_layer=ConvAct, layer_scale_init_value=None)
 
-        self.out_channels = in_channels[-3:]
         # self.out_channels = [in_channels[-1]]
-        self.weight_init()
+        self.init_weights()
     
     def forward(self, x: List[Tensor]):
         """
@@ -252,7 +254,7 @@ class DensAttFPN(nn.Module):
         return p3_1, p4_2, p5_2
         # return [p5_2]
 
-    def weight_init(self):
+    def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out')
@@ -265,3 +267,33 @@ class DensAttFPN(nn.Module):
                 nn.init.kaiming_normal_(m.weight, mode='fan_in')
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
+
+
+class NeckFactory:
+
+    neck_dict = {
+        "TailNeck": TailNeck,
+        "IdentityNeck": IdentityNeck,
+        "ConvNeck": ConvNeck,
+        "PAFPN": PAFPN,
+        "BiFPN": BiFPN,
+        "DensAttFPN": DensAttFPN,
+    }
+
+    def __init__(self):
+        pass
+
+    def create_neck(
+            self,
+            neck: str,
+            in_channels: List[int],
+            **kwargs
+    ):
+        NeckClass = NeckFactory.neck_dict.get(neck, None)
+        if not NeckClass:
+            raise ValueError(f"Unsupported neck model: {neck}.")
+        model = NeckClass(
+            in_channels=in_channels,
+            **kwargs
+        )
+        return model

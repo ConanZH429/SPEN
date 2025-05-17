@@ -36,23 +36,3 @@ class SPEEDplusCamera:
         ])
         self.K_image[:2] = self.K_image[:2] / self.scale
         self.K_image_inv = np.linalg.inv(self.K_image)
-
-
-class SPARKCamera:
-    def __init__(self, shape):
-        self.height = 1080
-        self.width = 1440
-        self.K_label = np.array(
-            [[1745.8644618517126, 0, 737.2727957367897],
-            [0, 1745.8644618517126, 528.4719595313072],
-            [0, 0, 1]]
-        )
-        self.K_label_inv = np.linalg.inv(self.K_label)
-        self.scale = self.height / shape[0]
-        self.K_image = np.array(
-            [[1745.8644618517126, 0, 737.2727957367897],
-            [0, 1745.8644618517126, 528.4719595313072],
-            [0, 0, 1]]
-        )
-        self.K_image[:2] = self.K_image[:2] / self.scale
-        self.K_image_inv = np.linalg.inv(self.K_image)

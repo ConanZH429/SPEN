@@ -128,15 +128,15 @@ def add_sun_flare_physics_v2(img: np.ndarray,
     cv.circle(flare_layer, flare_center, src_radius, src_color, -1)
 
     # Add lens diffraction spikes
-    for angle in [0, 45, 90, 135]:
-        end_point = (
-            int(flare_center[0] + np.cos(np.radians(angle)) * max(width, height)),
-            int(flare_center[1] + np.sin(np.radians(angle)) * max(width, height)),
-        )
-        cv.line(flare_layer, flare_center, end_point, src_color, 2)
+    # for angle in [0, 45, 90, 135]:
+    #     end_point = (
+    #         int(flare_center[0] + np.cos(np.radians(angle)) * max(width, height)),
+    #         int(flare_center[1] + np.sin(np.radians(angle)) * max(width, height)),
+    #     )
+    #     cv.line(flare_layer, flare_center, end_point, src_color, 2)
 
     # Apply gaussian blur to soften the flare
-    flare_layer = cv.GaussianBlur(flare_layer, (5, 5), sigmaX=15, sigmaY=15)
+    flare_layer = cv.GaussianBlur(flare_layer, (9, 9), sigmaX=15, sigmaY=15)
 
     # Create a radial gradient mask
     y, x = np.ogrid[:height, :width]

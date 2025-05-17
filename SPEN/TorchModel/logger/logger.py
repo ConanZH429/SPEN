@@ -10,9 +10,6 @@ class Logger:
     def log_text(self, text: str):
         """Log a text to the logger"""
     
-    def log_tags(self, tags: list[str]):
-        """Log a list of tags to the logger"""
-    
     def log_file(self, file_path: str):
         """Log a file to the logger"""
     

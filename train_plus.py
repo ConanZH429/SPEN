@@ -64,7 +64,6 @@ if __name__ == "__main__":
     model = ImageModule(config=config)
 
     train_dataloader, val_dataloader, test_dataloader = get_speedplus_dataloader(config)
-    # train_dataloader, val_dataloader = get_spark_dataloader(config)
 
     trainer = Trainer(
         model=model,

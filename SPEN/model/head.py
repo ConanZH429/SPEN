@@ -1,150 +1,14 @@
 from .blocks import *
 from typing import List, Dict, Any
 
-# head
-class CartHead(nn.Module):
-    def __init__(self, in_channels: int):
+
+class BaseHead(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.cart_fc = nn.Linear(in_channels, 3, bias=False)
+        self.pos_feature_dims: List[int]
+        self.ori_feature_dims: List[int]
     
-    def forward(self, pos_feature: Tensor):
-        cart = self.cart_fc(pos_feature)
-        return {
-            "cart": cart
-        }
-
-
-class SpherHead(nn.Module):
-    def __init__(self, in_channels: int):
-        super().__init__()
-        self.spher_fc = nn.Linear(in_channels, 3, bias=False)
-    
-    def forward(self, x: Tensor):
-        spher = self.spher_fc(x)
-        return {
-            "spher": spher
-        }
-
-
-class DiscreteSpherHead(nn.Module):
-    def __init__(self, in_channels: int, angle_stride: float, r_stride: float, r_max: int, **kwargs):
-        super().__init__()
-        r_dim = int(r_max // r_stride + 1)
-        theta_dim = int(90 // angle_stride + 1)
-        phi_dim = int(360 // angle_stride + 1)
-        self.r_fc = nn.Linear(in_channels, r_dim)
-        self.theta_fc = nn.Linear(in_channels, theta_dim)
-        self.phi_fc = nn.Linear(in_channels, phi_dim)
-    
-    def forward(self, pos_feature: Tensor):
-        if isinstance(pos_feature, tuple):
-            r_encode = self.r_fc(pos_feature[0])
-            theta_encode = self.theta_fc(pos_feature[1])
-            phi_encode = self.phi_fc(pos_feature[2])
-        else:
-            r_encode = self.r_fc(pos_feature)
-            theta_encode = self.theta_fc(pos_feature)
-            phi_encode = self.phi_fc(pos_feature)
-        return {
-            "r_encode": r_encode,
-            "theta_encode": theta_encode,
-            "phi_encode": phi_encode
-        }
-
-
-class QuatHead(nn.Module):
-    def __init__(self, in_channels: int):
-        super().__init__()
-        self.quat_fc = nn.Linear(in_channels, 4, bias=False)
-    
-    def forward(self, x: Tensor):
-        quat = self.quat_fc(x)
-        quat = F.normalize(quat, p=2, dim=1)
-        return {
-            "quat": quat
-        }
-
-
-class EulerHead(nn.Module):
-    def __init__(self, in_channels: int, **kwargs):
-        super().__init__()
-        self.euler_fc = nn.Linear(in_channels, 3, bias=False)
-    
-    def forward(self, x: Tensor):
-        euler = self.euler_fc(x)
-        return {
-            "euler": euler
-        }
-
-
-class DiscreteEulerHead(nn.Module):
-    def __init__(self, in_channels: int, stride: int, neighbor: int, **kwargs):
-        super().__init__()
-        yaw_dim = 360 // stride + 1 + 2 * neighbor
-        pitch_dim = 180 // stride + 1 + 2 * neighbor
-        roll_dim = 360 // stride + 1 + 2 * neighbor
-        self.yaw_fc = nn.Linear(in_channels, yaw_dim)
-        self.pitch_fc = nn.Linear(in_channels, pitch_dim)
-        self.roll_fc = nn.Linear(in_channels, roll_dim)
-
-    def forward(self, ori_feature: Tensor):
-        if isinstance(ori_feature, tuple):
-            yaw_encode = self.yaw_fc(ori_feature[0])
-            pitch_encode = self.pitch_fc(ori_feature[1])
-            roll_encode = self.roll_fc(ori_feature[2])
-        else:
-            yaw_encode = self.yaw_fc(ori_feature)
-            pitch_encode = self.pitch_fc(ori_feature)
-            roll_encode = self.roll_fc(ori_feature)
-        return {
-            "yaw_encode": yaw_encode,
-            "pitch_encode": pitch_encode,
-            "roll_encode": roll_encode
-        }
-
-class Head(nn.Module):
-    pos_head_dict = {
-        "Cart": CartHead,
-        "Spher": SpherHead,
-        "DiscreteSpher": DiscreteSpherHead,
-    }
-    ori_head_dict = {
-        "Quat": QuatHead,
-        "Euler": EulerHead,
-        "DiscreteEuler": DiscreteEulerHead
-    }
-    def __init__(self, pos_type: str, pos_args: Dict[str, Any], ori_type: str, ori_args: Dict[str, Any], fuse: bool = True):
-        super().__init__()
-        if fuse:
-            self.pos_fuse_fc = nn.Sequential(
-                nn.Linear(self.feature_dim, self.feature_dim),
-                MLPAct(inplace=True),
-            )
-            self.ori_fuse_fc = nn.Sequential(
-                nn.Linear(self.feature_dim, self.feature_dim),
-                MLPAct(inplace=True),
-            )
-        else:
-            self.pos_fuse_fc = nn.Identity()
-            self.ori_fuse_fc = nn.Identity()
-        PosHead = Head.pos_head_dict[pos_type]
-        self.pos_head = PosHead(self.feature_dim, **pos_args[pos_type])
-        OriHead = Head.ori_head_dict[ori_type]
-        self.ori_head = OriHead(self.feature_dim, **ori_args[ori_type])
-        self.weight_init()
-    
-    def forward(self, features: List[Tensor]):
-        assert len(self.fm2vect) == len(features), f"fm2vect length {len(self.fm2vect)} != features length {len(features)}"
-        features_vect = [fm2vect(fm) for fm2vect, fm in zip(self.fm2vect, features)]
-        pos_feature = torch.cat([vect[0].flatten(1) for vect in features_vect], dim=1)
-        ori_feature = torch.cat([vect[1].flatten(1) for vect in features_vect], dim=1)
-        pos_feature = self.pos_fuse_fc(pos_feature)
-        ori_feature = self.ori_fuse_fc(ori_feature)
-        pos_pre_dict = self.pos_head(pos_feature)
-        ori_pre_dict = self.ori_head(ori_feature)
-        return pos_pre_dict, ori_pre_dict
-    
-    def weight_init(self):
+    def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out')
@@ -159,132 +23,171 @@ class Head(nn.Module):
                     nn.init.constant_(m.bias, 0)
 
 
-class AvgPoolHead(Head):
-    def __init__(self,
-                 in_channels: List[int],
-                 head_args: Dict[str, Any],
-                 pos_type: str,
-                 pos_args: Dict[str, Any],
-                 ori_type: str,
-                 ori_args: Dict[str, Any]):
-        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
-        pool_size = head_args["pool_size"]
-        if isinstance(pool_size[0], int):
-            self.feature_dim = sum(channels * ps**2 for channels, ps in zip(in_channels, pool_size))
-        elif isinstance(pool_size[0], tuple):
-            self.feature_dim = sum(channels * ps[0]*ps[1] for channels, ps in zip(in_channels, pool_size))
-        super().__init__(pos_type, pos_args, ori_type, ori_args)
-        self.fm2vect = nn.ModuleList([AvgPool(ps) for ps in pool_size])
+class SplitHead(BaseHead):
+    def __init__(
+            self,
+            in_channels: List[int],
+            **kwargs,
+    ):
+        super().__init__()
+        self.pool_size = kwargs.get("pool_size", None)
+        self.fuse = kwargs.get("fuse", True)
+        self.pos_ratio = kwargs.get("pos_ratio", 0.2)
+        if isinstance(self.pool_size[0], int):
+            self.pool_size = [(ps, ps) for ps in self.pool_size]
+        feature_dim = sum(channels * ps[0]*ps[1] for channels, ps in zip(in_channels, self.pool_size))
+        self.fuse_fc = nn.Sequential(
+            nn.Linear(feature_dim, feature_dim),
+            MLPAct(inplace=True)
+        ) if self.fuse else nn.Identity()
+        self.pos_feature_dims = [int(feature_dim * self.pos_ratio)]
+        self.ori_feature_dims = [feature_dim - int(feature_dim * self.pos_ratio)]
+        self.init_weights()
+
+    def forward(self, x: List[Tensor]):
+        x = x[-len(self.pool_size):]
+        x_pooled = [F.adaptive_avg_pool2d(fm, ps).flatten(1) for fm, ps in zip(x, self.pool_size)]
+        feature = torch.cat(x_pooled, dim=1)
+        feature = self.fuse_fc(feature)
+        pos_feature, ori_feature = torch.split(feature, [self.pos_feature_dims[0], self.ori_feature_dims[0]], dim=1)
+        return pos_feature, ori_feature
 
 
-class MaxPoolHead(Head):
-    def __init__(self,
-                 in_channels: List[int],
-                 head_args: Dict[str, Any],
-                 pos_type: str,
-                 pos_args: Dict[str, Any],
-                 ori_type: str,
-                 ori_args: Dict[str, Any]):
-        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
-        pool_size = head_args["pool_size"]
-        if isinstance(pool_size[0], int):
-            self.feature_dim = sum(channels * ps**2 for channels, ps in zip(in_channels, pool_size))
-        elif isinstance(pool_size[0], tuple):
-            self.feature_dim = sum(channels * ps[0] * ps[1] for channels, ps in zip(in_channels, pool_size))
-        super().__init__(pos_type, pos_args, ori_type, ori_args)
-        self.fm2vect = nn.ModuleList([MaxPool(ps) for ps in pool_size])
-
-
-class MixPoolHead(Head):
-    def __init__(self,
-                 in_channels: List[int],
-                 head_args: Dict[str, Any],
-                 pos_type: str,
-                 pos_args: Dict[str, Any],
-                 ori_type: str,
-                 ori_args: Dict[str, Any]):
-        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
-        pool_size = head_args["pool_size"]
-        if isinstance(pool_size[0], int):
-            self.feature_dim = sum(channels * ps**2 for channels, ps in zip(in_channels, pool_size))
-        elif isinstance(pool_size[0], tuple):
-            self.feature_dim = sum(channels * ps[0] * ps[1] for channels, ps in zip(in_channels, pool_size))
-        super().__init__(pos_type, pos_args, ori_type, ori_args)
-        self.fm2vect = nn.ModuleList([MixPool(ps, head_args["weighted_learnable"]) for ps in pool_size])
-
-
-class SPPHead(Head):
-    def __init__(self,
-                 in_channels: List[int],
-                 head_args: Dict[str, Any],
-                 pos_type: str,
-                 pos_args: Dict[str, Any],
-                 ori_type: str,
-                 ori_args: Dict[str, Any]):
-        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
-        pool_size = head_args["pool_size"]
-        if isinstance(pool_size[0][0], int):
-            pool_s = [sum([ps**2 for ps in pool]) for pool in pool_size]
-            self.feature_dim = sum(channels * ps for channels, ps in zip(in_channels, pool_s))
-        elif isinstance(pool_size[0][0], tuple):
-            pool_s = [sum([ps[0]*ps[1] for ps in pool]) for pool in pool_size]
-            self.feature_dim = sum(channels * ps for channels, ps in zip(in_channels, pool_s))
-        super().__init__(pos_type, pos_args, ori_type, ori_args)
-        self.fm2vect = nn.ModuleList([SPP(ps, head_args["mode"]) for ps in pool_size])
-
-
-class MHAHead(Head):
-    def __init__(self,
-                 in_channels: List[int],
-                 head_args: Dict[str, Any],
-                 pos_type: str,
-                 pos_args: Dict[str, Any],
-                 ori_type: str,
-                 ori_args: Dict[str, Any]):
-        assert len(in_channels) == len(head_args["pool_size"]), f"in_channels length {len(in_channels)} != pool_size length {len(head_args['pool_size'])}"
-        patch_size = head_args["patch_size"]
-        pool_size = head_args["pool_size"]
-        if "spp" in head_args["pool_mode"]:
-            if isinstance(pool_size[0][0], int):
-                pool_s = [sum([ps**2 for ps in pool]) for pool in pool_size]
-                self.feature_dim = sum(channels * ps for channels, ps in zip(in_channels, pool_s))
-            elif isinstance(pool_size[0][0], tuple):
-                pool_s = [sum([ps[0]*ps[1] for ps in pool]) for pool in pool_size]
-                self.feature_dim = sum(channels * ps for channels, ps in zip(in_channels, pool_s))
+class PoolHead(BaseHead):
+    def __init__(
+            self,
+            in_channels: List[int],
+            **kwargs,
+    ):
+        super().__init__()
+        self.pool_size = kwargs.get("pool_size", None)
+        self.pool_type = kwargs.get("pool_type", "avg")
+        if self.pool_type == "mix":
+            self.weight_learnable = kwargs.get("weight_learnable", False)
+            if self.weight_learnable:
+                self.weight = nn.Parameter(torch.zeros(4, dtype=torch.float32, requires_grad=True), requires_grad=True)
+        if isinstance(self.pool_size[0], int):
+            self.pool_size = [(ps, ps) for ps in self.pool_size]
+        if self.pool_type == "avg":
+            self.pos_pool = AvgPool(self.pool_size)
+            self.ori_pool = AvgPool(self.pool_size)
+        elif self.pool_type == "max":
+            self.pos_pool = MaxPool(self.pool_size)
+            self.ori_pool = MaxPool(self.pool_size)
+        elif self.pool_type == "mix":
+            self.pos_pool = MixPool(self.pool_size)
+            self.ori_pool = MixPool(self.pool_size)
         else:
-            if isinstance(pool_size[0], int):
-                self.feature_dim = sum(channels * ps**2 for channels, ps in zip(in_channels, pool_size))
-            elif isinstance(pool_size[0], tuple):
-                self.feature_dim = sum(channels * ps[0]*ps[1] for channels, ps in zip(in_channels, pool_size))
-        super().__init__(pos_type, pos_args, ori_type, ori_args)
-        self.fm2vect = nn.ModuleList([MHAPool(ic, pas, head_args["embedding_mode"], pos, head_args["pool_mode"], head_args["num_heads"]) for ic, pas, pos in zip(in_channels, patch_size, pool_size)])
-
-
-class TokenHead(Head):
-    def __init__(self,
-                 in_channels: List[int],
-                 head_args: Dict[str, Any],
-                 pos_type: str,
-                 pos_args: Dict[str, Any],
-                 ori_type: str,
-                 ori_args: Dict[str, Any]):
-        assert len(in_channels) == len(head_args["patch_size"]), f"in_channels length {len(in_channels)} != patch_size length {len(head_args['patch_size'])}"
-        patch_size = head_args["patch_size"]
-        self.feature_dim = sum(in_channels)
-        super().__init__(pos_type, pos_args, ori_type, ori_args, False)
-        self.fm2vect = nn.ModuleList([TokenFeature(ic, ps, head_args["embedding_mode"], head_args["num_heads"], head_args["num_layers"], head_args["learnable_token_num"]) for ic, ps in zip(in_channels, patch_size)])
-        if head_args["learnable_token_num"] == 6:
-            self.forward = self.forward_advance
+            raise ValueError(f"Unsupported pool type: {self.pool_type}.")
+        feature_dim = sum(channels * ps[0]*ps[1] for channels, ps in zip(in_channels, self.pool_size))
+        if self.pool_type == "mix":
+            self.pos_feature_dims = self.ori_feature_dims = [feature_dim * 2]
+        else:
+            self.pos_feature_dims = self.ori_feature_dims = [feature_dim]
+        self.init_weights()
     
-    def forward_advance(self, features: List[Tensor]):
-        assert len(self.fm2vect) == len(features), f"fm2vect length {len(self.fm2vect)} != features length {len(features)}"
-        features_vect = [fm2vect(fm) for fm2vect, fm in zip(self.fm2vect, features)]
-        r_feature = torch.cat([vect[:, :, 0].flatten(1) for vect in features_vect], dim=1)
-        theta_feature = torch.cat([vect[:, :, 1].flatten(1) for vect in features_vect], dim=1)
-        phi_feature = torch.cat([vect[:, :, 2].flatten(1) for vect in features_vect], dim=1)
-        yaw_feature = torch.cat([vect[:, :, 3].flatten(1) for vect in features_vect], dim=1)
-        pitch_feature = torch.cat([vect[:, :, 4].flatten(1) for vect in features_vect], dim=1)
-        roll_feature = torch.cat([vect[:, :, 5].flatten(1) for vect in features_vect], dim=1)
-        pos_pre_dict = self.pos_head((r_feature, theta_feature, phi_feature))
-        ori_pre_dict = self.ori_head((yaw_feature, pitch_feature, roll_feature))
-        return pos_pre_dict, ori_pre_dict
+    def forward(self, x: List[Tensor]):
+        x = x[-len(self.pool_size):]
+        pos_feature = self.pos_pool(x)
+        ori_feature = self.ori_pool(x)
+        return pos_feature, ori_feature
+
+
+class TokenHead(BaseHead):
+    def __init__(
+            self,
+            in_channels: List[int],
+            **kwargs,
+    ):
+        super().__init__()
+        num_heads = kwargs.get("num_heads", 8)
+        num_layers = kwargs.get("num_layers", 8)
+        patch_shape = kwargs.get("patch_shape", None)
+        embedding_mode = kwargs.get("embedding_mode", "mean")
+        in_channels = in_channels[-1]
+
+        self.patch_embedding = PatchEmbedding(
+            patch_shape=patch_shape,
+            embedding_mode=embedding_mode,
+        )
+
+        self.blocks = nn.Sequential(
+            *[
+                Block(
+                    dim=in_channels,
+                    num_heads=num_heads,
+                ) for _ in range(num_layers)
+            ]
+        )
+
+        self.last_layer_norm = nn.LayerNorm(in_channels)
+
+        self.learnable_token = nn.Parameter(torch.zeros(1, 6, in_channels), requires_grad=True)
+        max_embedding_len = 1000
+        self.position_embedding = nn.Parameter(torch.randn(1, max_embedding_len, in_channels) * .02, requires_grad=True)
+        self.pos_feature_dims = self.ori_feature_dims = [in_channels, in_channels, in_channels]
+        self.init_weights()
+    
+
+    def add_token(self, patch: Tensor):
+        B = patch.shape[0]
+        patch = torch.cat([self.learnable_token.expand(B, -1, -1), patch], dim=1)
+        return patch
+    
+
+    def pos_embedding(self, patch: Tensor):
+        S = patch.shape[1]
+        patch = patch + self.position_embedding[:, :S, :]
+        return patch
+
+
+    def forward(self, x: List[Tensor]):
+        x = x[-1]
+        B, C, H, W = x.shape
+        patch = self.patch_embedding(x)     # B, S, C
+        patch = self.add_token(patch)     # B, S+6, C
+        patch = self.pos_embedding(patch)     # B, S+6, C
+        out = self.blocks(patch)     # B, S+6, C
+        out = self.last_layer_norm(out)     # B, S+6, C
+        out = out.transpose(1, 2)     # B, C, S+6
+        pos_feature = out[:, :, :3]     # B, C, 3
+        ori_feature = out[:, :, 3:6]    # B, C, 3
+        return pos_feature, ori_feature
+
+
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                trunc_normal_(m.weight, std=.02)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif hasattr(m, "init_weights") and m is not self:
+                m.init_weights()
+        trunc_normal_(self.position_embedding, std=.02)
+        trunc_normal_(self.learnable_token, std=1e-6)
+
+class HeadFactory:
+
+    head_dict = {
+        "PoolHead": PoolHead,
+        "TokenHead": TokenHead,
+        "SplitHead": SplitHead,
+    }
+
+    def __init__(self):
+        pass
+
+    def create_head(
+            self,
+            head: str,
+            in_channels: List[int],
+            **kwargs: Dict[str, Any],
+    ):
+        HeadClass = HeadFactory.head_dict.get(head, None)
+        if HeadClass is None:
+            raise ValueError(f"Unsupported head model: {head}.")
+        model = HeadClass(
+            in_channels=in_channels,
+            **kwargs,
+        )
+        return model
