@@ -64,14 +64,6 @@ class SPEEDplusDataset(Dataset):
         self.resize_first = config.resize_first
         self.image_first_size = config.image_first_size
         self.Camera = SPEEDplusCamera(config.image_first_size) if self.resize_first else SPEEDplusCamera((1200, 1920))
-        # cache the image data
-        if self.cache:
-            if self.resize_first:
-                self.image_numpy = np.zeros((len(self.image_list), self.image_first_size[0], self.image_first_size[1]), dtype=np.uint8)
-            else:
-                self.image_numpy = np.zeros((len(self.image_list), self.image_size[0], self.image_size[1]), dtype=np.uint8)
-            self._cache_image_multithread(self.image_list)
-            print(f"Load {self.image_numpy.shape[0]} {mode} images ({self.image_numpy[0].shape}) successfully.")
         # load the labels
         self.label = {}
         if mode == "train":
@@ -91,6 +83,14 @@ class SPEEDplusDataset(Dataset):
                 for filename, label in lightbox_val_label.items():
                     self.label["lightbox_" + filename] = label
         self.image_list = list(self.label.keys())
+        # cache the image data
+        if self.cache:
+            if self.resize_first:
+                self.image_numpy = np.zeros((len(self.image_list), self.image_first_size[0], self.image_first_size[1]), dtype=np.uint8)
+            else:
+                self.image_numpy = np.zeros((len(self.image_list), 1200, 1920), dtype=np.uint8)
+            self._cache_image_multithread(self.image_list)
+            print(f"Load {self.image_numpy.shape[0]} {mode} images ({self.image_numpy[0].shape}) successfully.")
         # transform the value of label to numpy array
         for k in self.label.keys():
             self.label[k]["pos"] = np.array(self.label[k]["pos"], dtype=np.float32)
@@ -202,24 +202,24 @@ class SPEEDplusTrainDataset(SPEEDplusDataset):
         self.drop_block_safe = DropBlockSafe(p=config.DropBlockSafe_p, **config.DropBlockSafe_args)
         self.sun_flare = SunFlare(p=config.SunFlare_p)
         self.cloth_surface = ClothSurfaceAug(
-            image_shape=self.image_first_size if self.resize_first else self.image_size,
+            image_shape=self.image_first_size if self.resize_first else (1200, 1920),
             p=config.ClothSurface_p,
         )
         self.surface_brightness = SurfaceBrightnessAug(p=config.SurfaceBrightness_p)
         self.z_axis_rotation = ZAxisRotation(
-            image_shape=self.image_first_size if self.resize_first else self.image_size,
+            image_shape=self.image_first_size if self.resize_first else (1200, 1920),
             p=config.ZAxisRotation_p,
             Camera=self.Camera,
             **config.ZAxisRotation_args
         )
         self.optical_center_rotation = OpticalCenterRotation(
-            image_shape=self.image_first_size if self.resize_first else self.image_size,
+            image_shape=self.image_first_size if self.resize_first else (1200, 1920),
             p=config.OpticalCenterRotation_p,
             Camera=self.Camera,
             **config.OpticalCenterRotation_args
         )
         self.trans_rotation = TransRotation(
-            image_shape=self.image_first_size if self.resize_first else self.image_size,
+            image_shape=self.image_first_size if self.resize_first else (1200, 1920),
             p=config.TransRotation_p,
             Camera=self.Camera,
             **config.TransRotation_args
@@ -227,7 +227,7 @@ class SPEEDplusTrainDataset(SPEEDplusDataset):
         self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p)
 
     def __getitem__(self, index):
-        image = self._get_image(self.image_list[index])
+        image = self._get_image(index, self.image_list[index])
         pos, ori, box, points_cam, points_image, in_image_num, r_cam_min_idx, r_cam_max_idx = self._get_label(self.image_list[index])
         
         # data augmentation
@@ -275,7 +275,7 @@ class SPEEDplusValDataset(SPEEDplusDataset):
         super().__init__(config, "val")
     
     def __getitem__(self, index):
-        image = self._get_image(self.image_list[index])
+        image = self._get_image(index, self.image_list[index])
         pos, ori, box, points_cam, points_image, in_image_num, r_cam_min_idx, r_cam_max_idx = self._get_label(self.image_list[index])
 
         # transform the image to tensor
@@ -298,10 +298,10 @@ class SPEEDplusTestDataset(SPEEDplusDataset):
     """
     def __init__(self, config: SPEEDplusConfig):
         config.cache = False
-        super().__init__(config, "val")
+        super().__init__(config, "test")
     
     def __getitem__(self, index):
-        image = self._get_image(self.image_list[index])
+        image = self._get_image(index, self.image_list[index])
         pos, ori, box, points_cam, points_image, in_image_num, r_cam_min_idx, r_cam_max_idx = self._get_label(self.image_list[index])
 
         # transform the image to tensor
@@ -342,7 +342,8 @@ def get_speedplus_dataloader(config: SPEEDplusConfig):
         persistent_workers=True,
         pin_memory=True,
         pin_memory_device="cuda",
-        prefetch_factor=4
+        prefetch_factor=4,
+        drop_last=True,
     )
     val_loader = data_loader(
         val_dataset,
@@ -353,6 +354,7 @@ def get_speedplus_dataloader(config: SPEEDplusConfig):
         pin_memory=True,
         pin_memory_device="cuda",
         prefetch_factor=4,
+        drop_last=True,
     )
     test_loader = DataLoader(
         test_dataset,

@@ -98,16 +98,17 @@ class SurfaceBrightnessAug():
             return image
 
         points_image = points_image.copy().astype(np.int32)
+        output = image.copy().astype(np.uint8)
 
         for i in range(3):
             surface_idx = self.adjacent_faces_dict[r_cam_min_idx][i]
-            image = self.change_single_surface(
-                image=image,
+            output = self.change_single_surface(
+                image=output,
                 points_image=points_image[:8, :2],
                 surface_idx=surface_idx
             )
 
-        return image
+        return output
 
     def change_single_surface(
             self,
@@ -118,11 +119,11 @@ class SurfaceBrightnessAug():
         mask = np.zeros_like(image, dtype=np.uint8)
         mask = cv.fillConvexPoly(mask, points_image[surface_idx, :], 1)
         mask = mask.astype(bool)
-        image_copy = image.copy()
+        output, image_copy = image.copy(), image.copy()
         image_copy = self.aug(image=image_copy)["image"]
 
-        image[mask] = image_copy[mask]
-        return image
+        output[mask] = image_copy[mask]
+        return output
 
 
 class ClothSurfaceAug():
@@ -330,7 +331,6 @@ class TransRotation():
             return image, pos, ori, box, points_cam, points_image
 
         image_warped = cv.warpPerspective(image, warp_matrix, (w, h), flags=cv.INTER_LINEAR)
-        # image_warped = 0
 
         return image_warped, pos_warped.astype(np.float32), ori.astype(np.float32), box_warped.astype(np.int32), points_cam_warped.T.astype(np.int32), points_image_warped.T.astype(np.int32)
 
@@ -471,10 +471,8 @@ class ZAxisRotation():
             return image, pos, ori, box, points_cam, points_image
 
         h, w = self.image_shape
-        original_area = (box[2] - box[0]) * (box[3] - box[1])
 
         t = 0
-        r_area = 0.8 * original_area
         while True:
             angle = random.uniform(-self.max_angle, self.max_angle)
 
@@ -496,8 +494,7 @@ class ZAxisRotation():
                     return image, pos, ori, box, points_cam, points_image
 
         warp_matrix = self.Camera.K_image @ rotation_matrix @ self.Camera.K_image_inv
-        # image_warped = cv.warpPerspective(image, warp_matrix, (w, h), flags=cv.INTER_LINEAR)
-        image_warped = 0
+        image_warped = cv.warpPerspective(image, warp_matrix, (w, h), flags=cv.INTER_LINEAR)
 
         pos_warped = rotation_matrix @ pos
         ori_warped = rotation * R.from_quat(ori, scalar_first=True)

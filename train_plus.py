@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # ----------Logger----------
     comet_logger = CometLogger(
         api_key=config.comet_api,
-        project_name="paper2",
+        project_name="paper3",
         experiment_name=config.name,
         online=not config.offline,
     )

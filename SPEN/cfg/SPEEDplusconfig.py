@@ -15,26 +15,25 @@ class SPEEDplusConfig(Config):
 
         # dataset
         self.dataset = "SPEEDplus"
-        self.dataset_folder = Path("../speedplusv2")
+        self.dataset_folder = Path("../datasets/speedplusv2")
         self.cache = True
         self.resize_first = True
-        self.image_first_size = (1000, 1600)
         self.image_first_size = (900, 1440)
         self.image_size = (480, 768)
         # self.image_size = (400, 640)
 
         # train
         self.device = "cuda"
-        self.epochs = 400
+        self.epochs = 50
         self.batch_size = 50
         self.lr0 = 0.001
         self.lr_min = 0.000001
         self.warmup_epochs = 0
         self.weight_decay = 0.00001
         self.optimizer = "AdamW"
-        self.scheduler = "WarmupCosin"              # WarmupCosin, OnPlateau, ReduceWarmupCosin, MultiStepLR
+        self.scheduler = "MultiStepLR"              # WarmupCosin, OnPlateau, ReduceWarmupCosin, MultiStepLR
         self.num_workers = 30
-        self.compile = False
+        self.compile = True
         self.gradient_clip_val = None
 
         # model
@@ -99,6 +98,7 @@ class SPEEDplusConfig(Config):
         # }
         self.pos_loss_dict = {
             "DiscreteSpher": "CE",
+            "Spher": "L1",
         }
         self.pos_loss_args = {
             "Cart": {
@@ -117,7 +117,7 @@ class SPEEDplusConfig(Config):
                     "SmoothL1": {"reduction": "mean"},
                 },
                 "beta": {"r": 1.0, "theta": 1.0, "phi": 1.0},
-                "weight_strategy": {"r": None, "theta": None, "phi": None},
+                "weight_strategy": {"r": "CosDecay", "theta": "CosDecay", "phi": "CosDecay"},
             },
             "DiscreteSpher": {
                 "loss_type": {
@@ -132,6 +132,7 @@ class SPEEDplusConfig(Config):
         ## ori_loss
         self.ori_loss_dict = {
             "DiscreteEuler": "CE",
+            "Euler": "L1",
         }
         self.ori_loss_args = {
             "Quat": {
@@ -150,7 +151,7 @@ class SPEEDplusConfig(Config):
                     "SmoothL1": {"reduction": "mean"},
                 },
                 "beta": {"yaw": 5.0, "pitch": 5.0, "roll": 5.0},
-                "weight_strategy": {"yaw": None, "pitch": None, "roll": None},
+                "weight_strategy": {"yaw": "CosDecay", "pitch": "CosDecay", "roll": "CosDecay"},
             },
             "DiscreteEuler": {
                 "loss_type": {
@@ -164,7 +165,7 @@ class SPEEDplusConfig(Config):
         self.ALPHA = (5, 1)              # score
 
         # augmentation
-        self.ZAxisRotation_p = 0.0
+        self.ZAxisRotation_p = 0.8
         self.ZAxisRotation_args = {
             "max_angle": 180,
             "max_t": 7,
@@ -186,7 +187,7 @@ class SPEEDplusConfig(Config):
 
         self.ClothSurface_p = 0.0
 
-        self.SurfaceBrightness_p = 0.0
+        self.SurfaceBrightness_p = 0.5
 
         self.SunFlare_p = 0.0
 

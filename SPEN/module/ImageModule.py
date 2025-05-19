@@ -34,6 +34,9 @@ class ImageModule(Model):
         # transform
         self.pos_transform = PosTransform(config.pos_type, **config.pos_args[config.pos_type])
         self.ori_transform = OriTransform(config.ori_type, **config.ori_args[config.ori_type])
+        if self.config.compile:
+            self.pos_transform = torch.compile(self.pos_transform, mode="reduce-overhead", fullgraph=True)
+            self.ori_transform = torch.compile(self.ori_transform, mode="reduce-overhead", fullgraph=True)
 
         self.test_result_dict = {}
 
@@ -50,12 +53,13 @@ class ImageModule(Model):
         for file in father_folder.rglob("*.py"):
             self.trainer.logger.log_code(file_path=file)
         # datasetsplit
-        father_folder = Path(".").resolve().parent
-        dataset_folder = father_folder / "datasets" / "speed"
-        self.trainer.logger.log_file(str(dataset_folder / "train.txt"))
-        self.trainer.logger.log_file(str(dataset_folder / "val.txt"))
-        self.trainer.logger.log_file(str(dataset_folder / "train_label.json"))
-        self.trainer.logger.log_file(str(dataset_folder / "val_label.json"))
+        if self.config.dataset == "SPEED":
+            father_folder = Path(".").resolve().parent
+            dataset_folder = father_folder / "datasets" / "speed"
+            self.trainer.logger.log_file(str(dataset_folder / "train.txt"))
+            self.trainer.logger.log_file(str(dataset_folder / "val.txt"))
+            self.trainer.logger.log_file(str(dataset_folder / "train_label.json"))
+            self.trainer.logger.log_file(str(dataset_folder / "val_label.json"))
 
 
     def forward(self, x):
@@ -71,10 +75,10 @@ class ImageModule(Model):
         ori_pre_dict = self.ori_transform.transform(ori_pre_dict)
         # loss
         pos_loss_list = [
-            loss(pos_pre_dict, labels["pos_encode"]) for loss in self.pos_loss_list
+            loss(pos_pre_dict, labels["pos_encode"], now_epoch=self.trainer.now_epoch) for loss in self.pos_loss_list
         ]
         ori_loss_list = [
-            loss(ori_pre_dict, labels["ori_encode"]) for loss in self.ori_loss_list
+            loss(ori_pre_dict, labels["ori_encode"], now_epoch=self.trainer.now_epoch) for loss in self.ori_loss_list
         ]
         pos_loss = torch.tensor(0.0, requires_grad=True).to(images.device)
         for loss_dict in pos_loss_list:
@@ -160,28 +164,32 @@ class ImageModule(Model):
 
     def _loss_init(self):
         # loss
+        ## pos_loss
         pos_loss_factory = PosLossFactory()
-        self.pos_loss_list = nn.ModuleList([
-            pos_loss_factory.create_pos_loss(
+        self.pos_loss_list = nn.ModuleList()
+        for pos_type, loss_type in self.config.pos_loss_dict.items():
+            pos_loss =  pos_loss_factory.create_pos_loss(
                 pos_type=pos_type,
                 loss_type=loss_type,
                 beta=self.config.pos_loss_args[pos_type]["beta"],
                 weight_strategy=self.config.pos_loss_args[pos_type]["weight_strategy"],
-            ) for pos_type, loss_type in self.config.pos_loss_dict.items()
-        ])
-        if self.config.compile:
-            self.pos_loss_list = torch.compile(self.pos_loss_list)
+            )
+            if self.config.compile:
+                pos_loss = torch.compile(pos_loss, mode="reduce-overhead", fullgraph=True)
+            self.pos_loss_list.append(pos_loss)
+        ## ori_loss
         ori_loss_factory = OriLossFactory()
-        self.ori_loss_list = nn.ModuleList([
-            ori_loss_factory.create_ori_loss(
+        self.ori_loss_list = nn.ModuleList()
+        for ori_type, loss_type in self.config.ori_loss_dict.items():
+            ori_loss =  ori_loss_factory.create_ori_loss(
                 ori_type=ori_type,
                 loss_type=loss_type,
                 beta=self.config.ori_loss_args[ori_type]["beta"],
                 weight_strategy=self.config.ori_loss_args[ori_type]["weight_strategy"],
-            ) for ori_type, loss_type in self.config.ori_loss_dict.items()
-        ])
-        if self.config.compile:
-            self.ori_loss_list = torch.compile(self.ori_loss_list)
+            )
+            if self.config.compile:
+                ori_loss = torch.compile(ori_loss, mode="reduce-overhead", fullgraph=True)
+            self.ori_loss_list.append(ori_loss)
 
     
     def _metrics_init(self):
@@ -224,6 +232,8 @@ class ImageModule(Model):
             data.update(loss.compute())
         for loss in self.train_ori_loss_metric_list:
             data.update(loss.compute())
+        if not log_online:
+            return
         # beta
         for loss in self.pos_loss_list:
             data.update(

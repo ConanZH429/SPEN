@@ -18,21 +18,21 @@ class Beta:
         self.init_beta = beta        # 权重系数
         self.beta = beta
         self.weight_strategy = weight_strategy
-        self.cur_iter = -1
         if weight_strategy == "CosDecay":
             self.max_iter = kwargs.get("max_iter", 400) # 最大epochs数
             self.min_ratio = kwargs.get("min_ratio", 0.1) # 最小权重比例
             self.step = self.cos_decay_step
+            self.beta_ratio_list = [self.min_ratio + (1-self.min_ratio)*(1 + math.cos(math.pi * i / (self.max_iter - 1))) / 2
+                                    for i in range(self.max_iter)]
     
-    def step(self):
+    def step(self, *args, **kwargs):
         pass
 
-    def cos_decay_step(self):
-        self.cur_iter += 1
-        if self.cur_iter > self.max_iter:
+    def cos_decay_step(self, now_epoch: int):
+        if now_epoch > self.max_iter:
             ratio = self.min_ratio
         else:
-            ratio = self.min_ratio + (1-self.min_ratio)*(1 + math.cos(math.pi * self.cur_iter / (self.max_iter  - 1))) / 2
+            ratio = self.beta_ratio_list[now_epoch]
         self.beta = ratio * self.init_beta
         
 
@@ -75,10 +75,12 @@ class CartLoss(nn.Module):
             self,
             pos_pre_dict: dict[str, Tensor],
             pos_label_dict: dict[str, Tensor],
+            **kwargs
     ):
-        self.beta_dict["x_beta"].step()
-        self.beta_dict["y_beta"].step()
-        self.beta_dict["z_beta"].step()
+        now_epoch = kwargs.get("now_epoch", None)
+        self.beta_dict["x_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["y_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["z_beta"].step(now_epoch=now_epoch)
         x_pre, y_pre, z_pre = pos_pre_dict["cart"].split([1, 1, 1], dim=1)
         x_label, y_label, z_label = pos_label_dict["cart"].split([1, 1, 1], dim=1)
         return {
@@ -117,10 +119,12 @@ class SpherLoss(nn.Module):
             self,
             pos_pre_dict: dict[str, Tensor],
             pos_label_dict: dict[str, Tensor],
+            **kwargs
     ):
-        self.beta_dict["r_beta"].step()
-        self.beta_dict["theta_beta"].step()
-        self.beta_dict["phi_beta"].step()
+        now_epoch = kwargs.get("now_epoch", None)
+        self.beta_dict["r_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["theta_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["phi_beta"].step(now_epoch=now_epoch)
         r_pre, theta_pre, phi_pre = pos_pre_dict["spher"].split([1, 1, 1], dim=1)
         r_label, theta_label, phi_label = pos_label_dict["spher"].split([1, 1, 1], dim=1)
         return {
@@ -158,10 +162,12 @@ class DiscreteSpherLoss(nn.Module):
             self,
             pos_pre_dict: dict[str, Tensor],
             pos_label_dict: dict[str, Tensor],
+            **kwargs
     ):
-        self.beta_dict["discrete_r_beta"].step()
-        self.beta_dict["discrete_theta_beta"].step()
-        self.beta_dict["discrete_phi_beta"].step()
+        now_epoch = kwargs.get("now_epoch", None)
+        self.beta_dict["discrete_r_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["discrete_theta_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["discrete_phi_beta"].step(now_epoch=now_epoch)
         discrete_r_pre = pos_pre_dict["discrete_r"]
         discrete_theta_pre = pos_pre_dict["discrete_theta"]
         discrete_phi_pre = pos_pre_dict["discrete_phi"]
@@ -231,8 +237,10 @@ class QuatLoss(nn.Module):
             self,
             ori_pre_dict: dict[str, Tensor],
             ori_label_dict: dict[str, Tensor],
+            **kwargs
     ):
-        self.beta_dict["quat_beta"].step()
+        now_epoch = kwargs.get("now_epoch", None)
+        self.beta_dict["quat_beta"].step(now_epoch=now_epoch)
         quat_pre = ori_pre_dict["quat"]
         quat_label = ori_label_dict["quat"]
         return {
@@ -269,10 +277,12 @@ class EulerLoss(nn.Module):
             self,
             ori_pre_dict: dict[str, Tensor],
             ori_label_dict: dict[str, Tensor],
+            **kwargs
     ):
-        self.beta_dict["yaw_beta"].step()
-        self.beta_dict["pitch_beta"].step()
-        self.beta_dict["roll_beta"].step()
+        now_epoch = kwargs.get("now_epoch", None)
+        self.beta_dict["yaw_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["pitch_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["roll_beta"].step(now_epoch=now_epoch)
         yaw_pre, pitch_pre, roll_pre = ori_pre_dict["euler"].split([1, 1, 1], dim=1)
         yaw_label, pitch_label, roll_label = ori_label_dict["euler"].split([1, 1, 1], dim=1)
         return {
@@ -310,10 +320,12 @@ class DiscreteEulerLoss(nn.Module):
             self,
             ori_pre_dict: dict[str, Tensor],
             ori_label_dict: dict[str, Tensor],
+            **kwargs
     ):
-        self.beta_dict["discrete_yaw_beta"].step()
-        self.beta_dict["discrete_pitch_beta"].step()
-        self.beta_dict["discrete_roll_beta"].step()
+        now_epoch = kwargs.get("now_epoch", None)
+        self.beta_dict["discrete_yaw_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["discrete_pitch_beta"].step(now_epoch=now_epoch)
+        self.beta_dict["discrete_roll_beta"].step(now_epoch=now_epoch)
         discrete_yaw_pre = ori_pre_dict["discrete_yaw"]
         discrete_pitch_pre = ori_pre_dict["discrete_pitch"]
         discrete_roll_pre = ori_pre_dict["discrete_roll"]

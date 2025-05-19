@@ -14,6 +14,7 @@ def parse2config(config):
         parser.add_argument("--train_ratio", type=float, default=config.train_ratio, help="Train ratio")
         parser.add_argument("--val_ratio", type=float, default=config.val_ratio, help="Validation ratio")
     parser.add_argument("--cache", action="store_true", help="Cache dataset")
+    parser.add_argument("--resize_first", action="store_true", help="Resize first")
     parser.add_argument("--img_first_size", type=int, nargs="+", default=config.image_first_size, help="Image first size")
     parser.add_argument("--img_size", type=int, nargs="+", default=config.image_size, help="Image size")
     # train
@@ -21,8 +22,6 @@ def parse2config(config):
     parser.add_argument("--batch_size", type=int, default=config.batch_size, help="Batch size")
     parser.add_argument("--lr0", type=float, default=config.lr0, help="Initial learning rate")
     parser.add_argument("--lr_min", type=float, default=config.lr_min, help="Minimum learning rate")
-    parser.add_argument("--beta_cos", action="store_true", help="Beta cosine")
-    parser.add_argument("--beta_epochs", type=int, default=config.beta_epochs, help="Beta epochs")
     parser.add_argument("--optimizer", type=str, default=config.optimizer, help="Optimizer")
     parser.add_argument("--scheduler", type=str, default=config.scheduler, help="Scheduler")
     parser.add_argument("--num_workers", type=int, default=config.num_workers, help="Number of workers")
@@ -68,10 +67,6 @@ def parse2config(config):
     # data augmentation
     parser.add_argument("--zr_p", type=float, default=config.ZAxisRotation_p, help="Z axis rotation probability")
     parser.add_argument("--zr_angle", type=int, default=config.ZAxisRotation_args["max_angle"], help="Z axis rotation angle")
-    parser.add_argument("--persp_p", type=float, default=config.Perspective_p)
-    parser.add_argument("--persp_angle", type=float, default=config.Perspective_args["max_angle"])
-    parser.add_argument("--persp_trans", type=float, default=config.Perspective_args["max_translation"])
-    parser.add_argument("--persp_scale", type=float, default=config.Perspective_args["max_scale"])
     parser.add_argument("--crop_paste_p", type=float, default=config.CropAndPaste_p, help="Crop and paste probability")
     parser.add_argument("--crop_pad_p", type=float, default=config.CropAndPadSafe_p, help="Crop and pad safe probability")
     parser.add_argument("--drop_block_p", type=float, default=config.DropBlockSafe_p, help="Drop block safe probability")
@@ -89,6 +84,7 @@ def parse2config(config):
         config.train_ratio = args.train_ratio
         config.val_ratio = args.val_ratio
     config.cache = args.cache
+    config.resize_first = args.resize_first
     config.image_first_size = tuple(map(int, args.img_first_size))
     config.image_size = tuple(map(int, args.img_size))
     # train
@@ -96,8 +92,6 @@ def parse2config(config):
     config.batch_size = args.batch_size
     config.lr0 = args.lr0
     config.lr_min = args.lr_min
-    config.beta_cos = args.beta_cos
-    config.beta_epochs = args.beta_epochs
     config.optimizer = args.optimizer
     config.scheduler = args.scheduler
     config.num_workers = args.num_workers
@@ -150,10 +144,6 @@ def parse2config(config):
     # data augmentation
     config.ZAxisRotation_p = args.zr_p
     config.ZAxisRotation_args["max_angle"] = args.zr_angle
-    config.Perspective_p = args.persp_p
-    config.Perspective_args["max_angle"] = args.persp_angle
-    config.Perspective_args["max_translation"] = args.persp_trans
-    config.Perspective_args["max_scale"] = args.persp_scale
     config.CropAndPaste_p = args.crop_paste_p
     config.CropAndPadSafe_p = args.crop_pad_p
     config.DropBlockSafe_p = args.drop_block_p

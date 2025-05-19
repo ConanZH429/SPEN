@@ -56,14 +56,6 @@ class SPEEDplussyDataset(Dataset):
         self.resize_first = config.resize_first
         self.image_first_size = config.image_first_size
         self.Camera = SPEEDplusCamera(config.image_first_size) if self.resize_first else SPEEDplusCamera((1200, 1920))
-        # cache the image data
-        if self.cache:
-            if self.resize_first:
-                self.image_numpy = np.zeros((len(self.image_list), self.image_first_size[0], self.image_first_size[1]), dtype=np.uint8)
-            else:
-                self.image_numpy = np.zeros((len(self.image_list), self.image_size[0], self.image_size[1]), dtype=np.uint8)
-            self._cache_image_multithread(self.image_list)
-            print(f"Load {self.image_numpy.shape[0]} {mode} images ({self.image_numpy[0].shape}) successfully.")
         # load the labels
         self.label = {}
         if mode == "train":
@@ -75,6 +67,14 @@ class SPEEDplussyDataset(Dataset):
                 synthetic_val_label = json.load(f)
                 self.label.update(synthetic_val_label)
         self.image_list = list(self.label.keys())
+        # cache the image data
+        if self.cache:
+            if self.resize_first:
+                self.image_numpy = np.zeros((len(self.image_list), self.image_first_size[0], self.image_first_size[1]), dtype=np.uint8)
+            else:
+                self.image_numpy = np.zeros((len(self.image_list), self.image_size[0], self.image_size[1]), dtype=np.uint8)
+            self._cache_image_multithread(self.image_list)
+            print(f"Load {self.image_numpy.shape[0]} {mode} images ({self.image_numpy[0].shape}) successfully.")
         # transform the value of label to numpy array
         for k in self.label.keys():
             self.label[k]["pos"] = np.array(self.label[k]["pos"], dtype=np.float32)
@@ -206,7 +206,7 @@ class SPEEDplussyTrainDataset(SPEEDplussyDataset):
         self.albumentation_aug = AlbumentationAug(p=config.AlbumentationAug_p)
 
     def __getitem__(self, index):
-        image = self._get_image(self.image_list[index])
+        image = self._get_image(index, self.image_list[index])
         pos, ori, box, points_cam, points_image, in_image_num, r_cam_min_idx, r_cam_max_idx = self._get_label(self.image_list[index])
 
         # data augmentation
@@ -277,7 +277,7 @@ class SPEEDplussyTestDataset(SPEEDplussyDataset):
     """
     def __init__(self, config: SPEEDplusConfig):
         config.cache = False
-        super().__init__(config, "val")
+        super().__init__(config, "test")
     
     def __getitem__(self, index):
         image = self._get_image(index, self.image_list[index])

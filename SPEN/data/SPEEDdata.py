@@ -152,16 +152,16 @@ class SPEEDDataset(Dataset):
         self.resize_first = config.resize_first
         self.image_first_size = config.image_first_size
         self.Camera = SPEEDCamera(config.image_first_size) if self.resize_first else SPEEDCamera((1200, 1920))
-        # cache the image data
-        if self.cache:
-            self.image_dict = {}
-            self._cache_image_multithread(self.image_list)
-            print(f"Load {len(self.image_dict)} {mode} images ({self.image_dict[self.image_list[0]].shape}) successfully.")
         # load the label
         with open(self.dataset_folder / f"{mode}_label.json", "r") as f:
             self.label = json.load(f)
         self.image_list = list(self.label.keys())
         self.ratio = config.val_ratio if mode == "val" else config.train_ratio
+        # cache the image data
+        if self.cache:
+            self.image_dict = {}
+            self._cache_image_multithread(self.image_list)
+            print(f"Load {len(self.image_dict)} {mode} images ({self.image_dict[self.image_list[0]].shape}) successfully.")
         # transform the value of label to numpy array
         for k in self.label.keys():
             self.label[k]["pos"] = np.array(self.label[k]["pos"], dtype=np.float32)

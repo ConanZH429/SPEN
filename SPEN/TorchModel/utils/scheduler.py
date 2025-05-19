@@ -115,7 +115,7 @@ def get_scheduler(sheduler_type: str, optimizer: torch.optim.Optimizer, config: 
     elif sheduler_type == "MultiStepLR":
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer,
-            milestones=[15, 18],
+            milestones=[15, 25],
             gamma=0.1,
             last_epoch=-1,
         )
